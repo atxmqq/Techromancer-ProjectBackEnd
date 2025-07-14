@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { createConnection } from 'mysql2';
 import loginRoute from './api/login.js'; 
+import registerRoute from './api/register.js';
 
 const app = express();
 const port = 3001;
@@ -28,17 +29,9 @@ connection.connect(err => {
 
 // ใช้ API Login
 app.use('/api', loginRoute(connection));
+app.use('/api', registerRoute(connection));
 
-// ตัวอย่าง API เดิม
-app.get('/products', (req, res) => {
-  connection.query('SELECT * FROM products', (err, results) => {
-    if (err) {
-      res.status(500).send('Error fetching products');
-    } else {
-      res.json(results);
-    }
-  });
-});
+
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
