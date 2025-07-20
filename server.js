@@ -1,7 +1,7 @@
 // server.js
 import express from 'express';
 import cors from 'cors';
-import { createConnection } from 'mysql2';
+import { createPool } from 'mysql2';
 import loginRoute from './api/login.js'; 
 import registerRoute from './api/register.js';
 
@@ -11,27 +11,22 @@ const port = 3001;
 app.use(cors());
 app.use(express.json());
 
-// เชื่อมต่อ MySQL
-const connection = createConnection({
+// เปลี่ยนจาก createConnection เป็น createPool
+const pool = createPool({
   host: '191.101.230.103',
   user: 'u528477660_techromancer',
   password: 'w^4O9}Zd',
   database: 'u528477660_techromancer',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
 });
 
-connection.connect(err => {
-  if (err) {
-    console.error('❌ DB connection failed:', err);
-  } else {
-    console.log('✅ Connected to database');
-  }
-});
+console.log('✅ Connected to database (via pool)');
 
-// ใช้ API Login
-app.use('/api', loginRoute(connection));
-app.use('/api', registerRoute(connection));
-
-
+// ส่ง pool แทน connection
+app.use('/api', loginRoute(pool));
+app.use('/api', registerRoute(pool));
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
