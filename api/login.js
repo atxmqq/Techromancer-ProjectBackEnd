@@ -33,6 +33,7 @@ export default function (pool) {
             uid: user.uid,
             email: user.email,
             fullname: user.fullname,
+            phone: user.phone,
           },
         });
       }
@@ -41,7 +42,7 @@ export default function (pool) {
 
   // ดึงผู้ใช้ทั้งหมด
   router.get('/users', (req, res) => {
-    pool.query('SELECT uid, email, fullname FROM User', (err, results) => {
+    pool.query('SELECT uid, email, fullname, phone FROM User', (err, results) => {
       if (err) {
         console.error('❌ Error fetching users:', err);
         return res.status(500).json({ error: 'ไม่สามารถดึงข้อมูลผู้ใช้ได้' });
