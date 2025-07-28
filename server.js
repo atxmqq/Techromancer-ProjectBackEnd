@@ -4,6 +4,7 @@ import cors from 'cors';
 import { createPool } from 'mysql2';
 import loginRoute from './api/login.js'; 
 import registerRoute from './api/register.js';
+import userRoute from './api/userRoute.js';
 
 const app = express();
 const port = 3001;
@@ -27,6 +28,7 @@ console.log('✅ Connected to database (via pool)');
 // ส่ง pool แทน connection
 app.use('/api', loginRoute(pool));
 app.use('/api', registerRoute(pool));
+app.use('/api', userRoute(pool));
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);

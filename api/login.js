@@ -1,10 +1,8 @@
-
-
 import express from 'express';
 
-const router = express.Router();
-
 export default function (pool) {
+  const router = express.Router();
+
   router.post('/login', (req, res) => {
     const { email, password } = req.body;
 
@@ -43,34 +41,5 @@ export default function (pool) {
     );
   });
 
-  // ดึงผู้ใช้ทั้งหมด
-  router.get('/users', (req, res) => {
-    pool.query('SELECT uid, email, fullname, phone FROM User', (err, results) => {
-      if (err) {
-        console.error('Error finding user:', err);
-        return res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
-      }
-
-      if (results.length === 0) {
-        return res.status(401).json({ error: 'Email หรือ Password ไม่ถูกต้อง' });
-      }
-
-      const user = results[0];
-
-      if (password !== user.password) {
-        return res.status(401).json({ error: 'Email หรือ Password ไม่ถูกต้อง' });
-      }
-
-      return res.json({
-        message: 'เข้าสู่ระบบสำเร็จ',
-        user: {
-          uid: user.uid,
-          email: user.email,
-          fullname: user.fullname,
-        },
-      });
-    });
-  });
-
-  return router;
+  return router; 
 }
