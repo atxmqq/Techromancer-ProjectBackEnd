@@ -5,6 +5,7 @@ import { createPool } from 'mysql2';
 import loginRoute from './api/login.js'; 
 import registerRoute from './api/register.js';
 import userRoute from './api/userRoute.js';
+import productRoute from './api/product.js';
 
 const app = express();
 const port = 3001;
@@ -29,6 +30,8 @@ console.log('✅ Connected to database (via pool)');
 app.use('/api', loginRoute(pool));
 app.use('/api', registerRoute(pool));
 app.use('/api', userRoute(pool));
+app.use('/api', productRoute(pool));
+
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
