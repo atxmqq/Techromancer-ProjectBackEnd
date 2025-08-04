@@ -2,7 +2,7 @@
 import express from 'express';
 import cors from 'cors';
 import { createPool } from 'mysql2';
-import loginRoute from './api/login.js'; 
+import loginRoute from './api/login.js';
 import registerRoute from './api/register.js';
 import userRoute from './api/userRoute.js';
 import productRoute from './api/product.js';
