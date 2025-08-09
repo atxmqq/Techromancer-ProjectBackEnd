@@ -6,7 +6,7 @@ import loginRoute from './api/login.js';
 import registerRoute from './api/register.js';
 import userRoute from './api/userRoute.js';
 import productRoute from './api/product.js';
-
+import cartRoute from './api/cartRoute.js';
 const app = express();
 const port = 3001;
 
@@ -31,6 +31,7 @@ app.use('/api', loginRoute(pool));
 app.use('/api', registerRoute(pool));
 app.use('/api', userRoute(pool));
 app.use('/api', productRoute(pool));
+app.use('/api', cartRoute(pool));
 
 
 app.listen(port, () => {
