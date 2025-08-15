@@ -3,7 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { createPool } from 'mysql2';
 import loginRoute from './api/login.js';
-import registerRoute from './api/register.js';
+import register from './api/register.js';
 import userRoute from './api/userRoute.js';
 import productRoute from './api/product.js';
 import cartRoute from './api/cartRoute.js';
@@ -29,7 +29,7 @@ console.log('✅ Connected to database (via pool)');
 
 // ส่ง pool แทน connection
 app.use('/api', loginRoute(pool));
-app.use('/api', registerRoute(pool));
+app.use('/api', register(pool));
 app.use('/api', userRoute(pool));
 app.use('/api', productRoute(pool));
 app.use('/api', cartRoute(pool));

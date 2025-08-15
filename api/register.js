@@ -1,37 +1,35 @@
 import express from 'express';
+import bcrypt from 'bcrypt';
 
-const router = express.Router();
+export default function(pool) {
+  const router = express.Router();
 
-export default function (connection) {
   router.post('/register', async (req, res) => {
-    const { email, password, phone, address, fullname } = req.body;
+    const { username, fullname, email, password, phone } = req.body;
 
-    // ตรวจสอบข้อมูลว่าครบมั้ย
-    if (!email || !password || !phone || !address || !fullname) {
-      return res.status(400).json({ error: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+    if (!username || !fullname || !email || !password) {
+      return res.status(400).json({ error: 'กรุณากรอกข้อมูลให้ครบ' });
     }
 
     try {
-      // ตรวจสอบว่า email ซ้ำหรือยัง
-      const [existing] = await connection.promise().query(
-        'SELECT * FROM User WHERE email = ?',
-        [email]
+      // hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      pool.query(
+        'INSERT INTO User (username, fullname, email, password, phone) VALUES (?, ?, ?, ?, ?)',
+        [username, fullname, email.trim(), hashedPassword, phone],
+        (err, result) => {
+          if (err) {
+            console.error(err);
+            return res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
+          }
+
+          res.json({ message: 'สมัครสมาชิกสำเร็จ' });
+        }
       );
-
-      if (existing.length > 0) {
-        return res.status(409).json({ error: 'Email นี้ถูกใช้ไปแล้ว' });
-      }
-
-      // บันทึก password ลงฐานข้อมูลโดยไม่เข้ารหัส
-      await connection.promise().query(
-        'INSERT INTO User (email, password, phone, address, fullname) VALUES (?, ?, ?, ?, ?)',
-        [email, password, phone, address, fullname]
-      );
-
-      res.status(201).json({ message: 'สมัครสมาชิกสำเร็จ' });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
+      res.status(500).json({ error: 'เกิดข้อผิดพลาดในการ hash รหัสผ่าน' });
     }
   });
 
