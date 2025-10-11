@@ -80,23 +80,23 @@ export default function (pool) {
 });
 
   router.get('/cart/:uid', (req, res) => {
-    const { uid } = req.params;
+  const { uid } = req.params;
 
-    const sql = `
-      SELECT c.pid, c.amount, p.name, p.price_before, p.picture
-      FROM Cart c
-      JOIN Product p ON c.pid = p.pid
-      WHERE c.uid = ?
-    `;
+  const sql = `
+    SELECT c.pid, c.cid, c.amount, p.name, p.price_before, p.picture
+    FROM Cart c
+    JOIN Product p ON c.pid = p.pid
+    WHERE c.uid = ?
+  `;
 
-    pool.query(sql, [uid], (err, results) => {
-      if (err) {
-        console.error('❌ Error fetching cart:', err);
-        return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลตะกร้า' });
-      }
-      res.json(results);
-    });
+  pool.query(sql, [uid], (err, results) => {
+    if (err) {
+      console.error('❌ Error fetching cart:', err);
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลตะกร้า' });
+    }
+    res.json(results);
   });
+});
 
   router.post('/cart/remove', (req, res) => {
   const { uid, pid } = req.body;

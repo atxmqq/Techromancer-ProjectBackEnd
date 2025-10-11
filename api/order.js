@@ -1,4 +1,3 @@
-// api/order.js
 import express from "express";
 
 export default function (pool) {
@@ -9,17 +8,16 @@ export default function (pool) {
     try {
       const orders = req.body; // เป็น array ของ order details
 
-      if (!Array.isArray(orders) || orders.length === 0) {
+      if (!Array.isArray(orders) || orders.length === 0) {ฟ
         return res.json({ success: false, message: "ไม่มีข้อมูลออเดอร์" });
       }
 
       const sql = `
-        INSERT INTO Order_details (oid, uid, pid, cid, amount, price, delivery_type)
+        INSERT INTO Order_details (uid, pid, cid, amount, price, delivery_type)
         VALUES ?;
-      `;
+        `;
 
       const values = orders.map(o => [
-        o.oid,
         o.uid,
         o.pid,
         o.cid,
@@ -28,7 +26,6 @@ export default function (pool) {
         o.delivery_type,
       ]);
 
-      // ใช้ pool.query เพื่อรองรับ async/await
       await pool.promise().query(sql, [values]);
 
       res.json({ success: true, message: "เพิ่มออเดอร์สำเร็จ" });

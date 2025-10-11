@@ -9,7 +9,8 @@ const serviceAccount = JSON.parse(
 
 initializeApp({
   credential: cert(serviceAccount),
-  storageBucket: "techromancer-project.appspot.com"
+  // storageBucket: "techromancer-project.appspot.com"
+  storageBucket: "techromancer-project.firebasestorage.app"
 });
 
 export const bucket = getStorage().bucket();
