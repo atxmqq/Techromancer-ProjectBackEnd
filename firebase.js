@@ -1,22 +1,15 @@
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+import { initializeApp, cert } from "firebase-admin/app";
+import { getStorage } from "firebase-admin/storage";
+import fs from "fs";
 
-// คอนฟิกการเชื่อมต่อ Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSyDpl1bykKCFooUCogV5O4b38-X87qagXFc",
-  authDomain: "techromancer-project.firebaseapp.com",
-  projectId: "techromancer-project",
-  storageBucket: "techromancer-project.firebasestorage.app",
-  messagingSenderId: "1047885430496",
-  appId: "1:1047885430496:web:98280d4c3982a762cd9a85",
-  measurementId: "G-V4ZJJ0F3PG"
-};
+const serviceAccount = JSON.parse(
+  fs.readFileSync("./techromancer-project-firebase-adminsdk-fbsvc-afb4e4ee9d.json", "utf-8") // <- ต้องตรงพาธจริง
+);
 
-// เริ่มต้น Firebase app
-const app = initializeApp(firebaseConfig);
-console.log("✅ Firebase initialized:", app.name); // จะเห็นข้อความนี้ใน Console ถ้าเชื่อมสำเร็จ
 
-// เริ่มต้น Analytics
-const analytics = getAnalytics(app);
+initializeApp({
+  credential: cert(serviceAccount),
+  storageBucket: "techromancer-project.appspot.com"
+});
 
-export { app, analytics }; // ส่งออก `app` และ `analytics`
+export const bucket = getStorage().bucket();

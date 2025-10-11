@@ -8,6 +8,8 @@ import userRoute from './api/userRoute.js';
 import productRoute from './api/product.js';
 import cartRoute from './api/cartRoute.js';
 import address from './api/address.js';
+import paymentRoutes from './api/payment.js';
+import orderRoute from './api/order.js';
 const app = express();
 const port = 3001;
 
@@ -34,6 +36,8 @@ app.use('/api', userRoute(pool));
 app.use('/api', productRoute(pool));
 app.use('/api', cartRoute(pool));
 app.use('/api', address(pool));
+app.use('/api/payment', paymentRoutes); 
+app.use('/api', orderRoute(pool));
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
