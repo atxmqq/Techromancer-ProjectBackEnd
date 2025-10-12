@@ -36,7 +36,7 @@ app.use('/api', userRoute(pool));
 app.use('/api', productRoute(pool));
 app.use('/api', cartRoute(pool));
 app.use('/api', address(pool));
-app.use('/api/payment', paymentRoutes); 
+app.use('/api', paymentRoutes);
 app.use('/api', orderRoute(pool));
 
 app.listen(port, () => {
