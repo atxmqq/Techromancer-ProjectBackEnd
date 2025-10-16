@@ -83,7 +83,7 @@ export default function (pool) {
   const { uid } = req.params;
 
   const sql = `
-    SELECT c.pid, c.cid, c.amount, p.name, p.price_before, p.picture
+    SELECT c.pid, c.cid, c.amount, p.name, p.price_before, p.picture_one
     FROM Cart c
     JOIN Product p ON c.pid = p.pid
     WHERE c.uid = ?

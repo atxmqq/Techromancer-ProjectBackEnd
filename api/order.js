@@ -11,7 +11,7 @@ export default function (pool) {
         SELECT 
             od.*, 
             p.name, 
-            p.picture 
+            p.picture_one
         FROM 
             Order_details AS od
         INNER JOIN 
