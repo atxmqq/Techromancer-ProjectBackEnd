@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 
-export default function(pool) {
+export default function (pool) {
   const router = express.Router();
 
   router.post('/register', async (req, res) => {
@@ -12,7 +12,6 @@ export default function(pool) {
     }
 
     try {
-      // hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
       pool.query(
@@ -23,7 +22,6 @@ export default function(pool) {
             console.error(err);
             return res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
           }
-
           res.json({ message: 'สมัครสมาชิกสำเร็จ' });
         }
       );
