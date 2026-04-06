@@ -6,7 +6,6 @@ export default function (pool) {
   router.get('/order/:uid', (req, res) => {
     const { uid } = req.params;
 
-    // SQL query ที่มีการ JOIN ตาราง
     const sqlQuery = `
         SELECT 
             od.*, 
@@ -48,14 +47,12 @@ export default function (pool) {
 
     await connection.beginTransaction();
 
-    // 🔹 ดึง username จาก uid
     const [userRows] = await connection.query(
       "SELECT username FROM User WHERE uid = ?",
       [uid]
     );
     const username = userRows.length > 0 ? userRows[0].username : null;
 
-    // 🔹 Insert ลง Order
     const orderSql = `
       INSERT INTO \`Order\` 
       (uid, order_date, total_price, status, tracking_number, username, did, eid, mid)
@@ -64,17 +61,16 @@ export default function (pool) {
     const [orderResult] = await connection.query(orderSql, [
       uid,
       total_price,
-      "รอจัดส่ง",   // สถานะเริ่มต้น
-      null,          // tracking_number
+      "รอจัดส่ง",  
+      null,         
       username,
-      null,          // did
-      null,          // eid
-      1,             // mid = วิธีชำระเงิน (1 = พร้อมเพย์)
+      null,         
+      null,          
+      1,             
     ]);
 
     const orderId = orderResult.insertId;
 
-    // 🔹 Insert ลง Order_details
     const detailSql = `
       INSERT INTO Order_details (order_id, uid, pid, amount, price, address, delivery_type)
       VALUES ?;
@@ -86,7 +82,7 @@ export default function (pool) {
       o.pid,
       o.amount,
       o.price,
-      address,           // ใช้ที่อยู่ที่เลือกใน dropdown
+      address,           
       delivery_type,
     ]);
 
