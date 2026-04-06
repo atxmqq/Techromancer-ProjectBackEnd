@@ -1,7 +1,7 @@
 import mysql from 'mysql2';
 
 const pool = mysql.createPool({
-  host: '191.101.230.103',
+  host: 'mysqladmin.comsciproject.net', //191.101.230.103
   user: 'u528477660_techromancer',
   password: 'w^4O9}Zd',
   database: 'u528477660_techromancer',
