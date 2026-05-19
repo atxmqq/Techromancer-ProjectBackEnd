@@ -4,30 +4,46 @@ export default function (pool) {
     const router = express.Router();
 
     // ดึง product พร้อม join categories และ type
-    router.get('/products', (req, res) => {
-        pool.query(
-            `SELECT 
-            p.pid,
-            p.name,
-            p.details,
-            p.price_before,
-            p.picture_one,
-            p.amount,
-            p.pc_id,
-            p.pt_id,
-            pc.name AS category_name,
-            pt.name AS type_name
-        FROM Product p
-        JOIN Product_Categories pc ON p.pc_id = pc.pc_id
-        JOIN Product_Type pt ON p.pt_id = pt.pt_id`,
-            (err, results) => {
-                if (err) {
-                    console.error('Error finding product:', err);
-                    return res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
-                }
-                res.json(results);
-            }
-        );
+    router.get("/products", async (req, res) => {
+        try {
+            const query = `
+      SELECT 
+        p.pid, 
+        p.pc_id, 
+        p.name, 
+        p.price_before, 
+        p.picture_one,
+        
+        -- 1. เช็ค CPU ↔ เมนบอร์ด (จับคู่ Socket)
+        COALESCE(cpu.Socket_Type, mb.CPU_Socket) AS socket_type,
+        
+        -- 2. เช็ค RAM ↔ เมนบอร์ด (จับคู่ประเภทแรม)
+        COALESCE(ram.Memory_Type, mb.Memory_Type) AS ram_type,
+        
+        -- 3. เช็ค การ์ดจอ ↔ พาวเวอร์ซัพพลาย (คำนวณกำลังวัตต์)
+        vga.Power_Requirement AS recommended_psu,
+        pw.Continuous_Power_W AS wattage,
+
+        -- 4. เช็ค เมนบอร์ด ↔ เคส (จับคู่ขนาดบอร์ด)
+        mb.Form_Factor AS mobo_form_factor,
+        c.Mainboard_Support AS case_mobo_support
+
+      FROM Product p
+      LEFT JOIN Product_Cpu_details cpu ON p.cpu_details = cpu.cpu_id
+      LEFT JOIN Product_Mainboard_details mb ON p.mainboard_details = mb.mb_id
+      LEFT JOIN Product_Ram_details ram ON p.ram_details = ram.ram_id
+      LEFT JOIN Product_Vga_details vga ON p.vga_details = vga.vga_id
+      LEFT JOIN Product_Power_details pw ON p.power_details = pw.pw_id
+      LEFT JOIN Product_Case_details c ON p.case_details = c.case_id
+    `;
+
+            const [results] = await pool.promise().query(query);
+            res.json(results);
+
+        } catch (err) {
+            console.error('Error fetching all products:', err);
+            res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
+        }
     });
 
 
@@ -98,13 +114,13 @@ export default function (pool) {
 
 
     // ✅ ดึงข้อมูลสินค้าพร้อมรายละเอียด
-  router.get("/products/:pid", async (req, res) => {
-    const { pid } = req.params;
+    router.get("/products/:pid", async (req, res) => {
+        const { pid } = req.params;
 
-    try {
-      // --- ดึงข้อมูลหลักจาก Product ---
-      const [productResults] = await pool.promise().query(
-        `SELECT 
+        try {
+            // --- ดึงข้อมูลหลักจาก Product ---
+            const [productResults] = await pool.promise().query(
+                `SELECT 
           p.*,
           pc.name AS category_name,
           pt.name AS type_name
@@ -112,57 +128,57 @@ export default function (pool) {
         JOIN Product_Categories pc ON p.pc_id = pc.pc_id
         JOIN Product_Type pt ON p.pt_id = pt.pt_id
         WHERE p.pid = ?`,
-        [pid]
-      );
+                [pid]
+            );
 
-      if (productResults.length === 0) {
-        return res.status(404).json({ error: "ไม่พบข้อมูลสินค้า" });
-      }
+            if (productResults.length === 0) {
+                return res.status(404).json({ error: "ไม่พบข้อมูลสินค้า" });
+            }
 
-      const product = productResults[0];
+            const product = productResults[0];
 
-      // --- ตารางรายละเอียดที่สัมพันธ์กับ Product ---
-      const detailMapping = [
-        { field: "comset_details", table: "Product_Comset_details", key: "cs_id" },
-        { field: "cpu_details", table: "Product_Cpu_details", key: "cpu_id" },
-        { field: "ram_details", table: "Product_Ram_details", key: "ram_id" },
-        { field: "vga_details", table: "Product_Vga_details", key: "vga_id" },
-        { field: "mainboard_details", table: "Product_Mainboard_details", key: "mb_id" },
-        { field: "storage_details", table: "Product_Storage_details", key: "st_id" },
-        { field: "power_details", table: "Product_Power_details", key: "pw_id" },
-        { field: "case_details", table: "Product_Case_details", key: "case_id" },
-      ];
+            // --- ตารางรายละเอียดที่สัมพันธ์กับ Product ---
+            const detailMapping = [
+                { field: "comset_details", table: "Product_Comset_details", key: "cs_id" },
+                { field: "cpu_details", table: "Product_Cpu_details", key: "cpu_id" },
+                { field: "ram_details", table: "Product_Ram_details", key: "ram_id" },
+                { field: "vga_details", table: "Product_Vga_details", key: "vga_id" },
+                { field: "mainboard_details", table: "Product_Mainboard_details", key: "mb_id" },
+                { field: "storage_details", table: "Product_Storage_details", key: "st_id" },
+                { field: "power_details", table: "Product_Power_details", key: "pw_id" },
+                { field: "case_details", table: "Product_Case_details", key: "case_id" },
+            ];
 
-      let detailsData = {};
-      let foundTables = [];
+            let detailsData = {};
+            let foundTables = [];
 
-      // --- วนดูทุก field ---
-      for (const { field, table, key } of detailMapping) {
-        const relatedId = product[field]; // ดูว่ามี id ใน product ไหม
-        if (!relatedId) continue; // ถ้าไม่มีให้ข้าม
+            // --- วนดูทุก field ---
+            for (const { field, table, key } of detailMapping) {
+                const relatedId = product[field]; // ดูว่ามี id ใน product ไหม
+                if (!relatedId) continue; // ถ้าไม่มีให้ข้าม
 
-        const [rows] = await pool
-          .promise()
-          .query(`SELECT * FROM ${table} WHERE ${key} = ?`, [relatedId]);
+                const [rows] = await pool
+                    .promise()
+                    .query(`SELECT * FROM ${table} WHERE ${key} = ?`, [relatedId]);
 
-        if (rows.length > 0) {
-          detailsData[table] = rows[0];
-          foundTables.push(table);
+                if (rows.length > 0) {
+                    detailsData[table] = rows[0];
+                    foundTables.push(table);
+                }
+            }
+
+            // --- ส่งข้อมูลกลับ ---
+            return res.json({
+                ...product,
+                details_from: foundTables,
+                details_data: detailsData,
+            });
+
+        } catch (err) {
+            console.error('Error fetching product details:', err);
+            res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
         }
-      }
-
-      // --- ส่งข้อมูลกลับ ---
-      return res.json({
-        ...product,
-        details_from: foundTables,
-        details_data: detailsData,
-      });
-
-  } catch (err) {
-    console.error('Error fetching product details:', err);
-    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
-  }
-});
+    });
 
 
 
