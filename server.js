@@ -30,6 +30,7 @@ app.use('/api', cartRoute(pool));
 app.use('/api', address(pool));
 app.use('/api', paymentRoutes); // อันนี้ไม่ได้ส่ง pool ไป (อิงตามโค้ดเดิมของคุณ)
 app.use('/api', orderRoute(pool));
+app.use('/uploads', express.static('uploads'));
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
