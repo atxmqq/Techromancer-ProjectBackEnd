@@ -221,6 +221,29 @@ router.get("/order/user/:uid", async (req, res) => {
     connection.release();
   }
 });
+router.put("/order/cancel/:id", async (req, res) => {
+  const orderId = req.params.id;
+  const connection = await pool.promise().getConnection();
+  
+  try {
+    // อัปเดตสถานะในตาราง Order
+    const [result] = await connection.query(
+      "UPDATE `Order` SET status = 'ยกเลิก' WHERE oid = ?",
+      [orderId]
+    );
+
+    if (result.affectedRows > 0) {
+      res.json({ success: true, message: "ยกเลิกออเดอร์เรียบร้อยแล้ว" });
+    } else {
+      res.status(404).json({ success: false, message: "ไม่พบรายการสั่งซื้อ" });
+    }
+  } catch (err) {
+    console.error("SQL Error (/order/cancel):", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  } finally {
+    connection.release();
+  }
+});
 
   return router;
 }

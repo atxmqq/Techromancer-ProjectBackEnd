@@ -9,7 +9,7 @@ import register from './api/register.js';
 import userRoute from './api/userRoute.js';
 import productRoute from './api/product.js';
 import cartRoute from './api/cartRoute.js';
-import address from './api/address.js';
+import addressRouter from './api/address.js';
 import paymentRoutes from './api/payment.js';
 import orderRoute from './api/order.js';
 import custompcRoute from './api/custompc.js';
@@ -28,7 +28,7 @@ app.use('/api', register(pool));
 app.use('/api', userRoute(pool));
 app.use('/api', productRoute(pool));
 app.use('/api', cartRoute(pool));
-app.use('/api', address(pool));
+app.use('/api/address', addressRouter(pool));
 app.use('/api', paymentRoutes); // อันนี้ไม่ได้ส่ง pool ไป (อิงตามโค้ดเดิมของคุณ)
 app.use('/api', orderRoute(pool));
 app.use('/uploads', express.static('uploads'));
