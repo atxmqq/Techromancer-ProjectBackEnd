@@ -25,7 +25,7 @@ export default function(pool) {
 });
 
   // POST /api/address/add
-  router.post('/address/add', (req, res) => {
+  router.post('/add', (req, res) => {
     const { uid, address } = req.body;
 
     if (!uid || !address || address.trim() === '') {
