@@ -179,8 +179,67 @@ export default function (pool) {
             res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
         }
     });
+    // --- โค้ดสำหรับระบบกดถูกใจ (Like) ---
+    router.post('/like', (req, res) => {
+        const { uid, pid } = req.body;
 
+        if (!uid || !pid) {
+            return res.status(400).json({ message: "ข้อมูลไม่ครบถ้วน" });
+        }
 
+        // 1. ตรวจสอบก่อนว่าเคยไลก์ไปหรือยัง
+        const checkSql = "SELECT * FROM Like_product WHERE uid = ? AND pid = ?";
+        pool.query(checkSql, [uid, pid], (err, result) => {
+            if (err) {
+                console.error("Error checking like:", err);
+                return res.status(500).json({ error: err });
+            }
+            
+            if (result.length > 0) {
+                return res.status(400).json({ message: "คุณถูกใจสินค้านี้ไปแล้ว" });
+            }
+
+            // 2. ถ้ายังไม่เคยไลก์ ให้ Insert ข้อมูล
+            const sql = "INSERT INTO Like_product (uid, pid) VALUES (?, ?)";
+            pool.query(sql, [uid, pid], (err, result) => {
+                if (err) {
+                    console.error("Error inserting like:", err);
+                    return res.status(500).json({ error: err });
+                }
+                return res.status(200).json({ message: "ถูกใจสำเร็จ!" });
+            });
+        });
+    });
+    // 1. ตรวจสอบว่า User ไลค์สินค้าตัวนี้หรือยัง (สำหรับตอนโหลดหน้า)
+    router.get('/like/check/:uid/:pid', (req, res) => {
+        const { uid, pid } = req.params;
+        pool.query("SELECT * FROM Like_product WHERE uid = ? AND pid = ?", [uid, pid], (err, results) => {
+            if (err) return res.status(500).json({ error: err });
+            res.json({ liked: results.length > 0 });
+        });
+    });
+
+    // 2. ยกเลิกการถูกใจ (Delete)
+    router.delete('/like', (req, res) => {
+        const { uid, pid } = req.body;
+        pool.query("DELETE FROM Like_product WHERE uid = ? AND pid = ?", [uid, pid], (err, result) => {
+            if (err) return res.status(500).json({ error: err });
+            res.status(200).json({ message: "ยกเลิกถูกใจสำเร็จ" });
+        });
+    });
+    router.get('/likes/:uid', (req, res) => {
+    const { uid } = req.params;
+    const sql = `
+        SELECT p.pid, p.name, p.price_before, p.picture_one 
+        FROM Like_product l 
+        JOIN Product p ON l.pid = p.pid 
+        WHERE l.uid = ?
+    `;
+    pool.query(sql, [uid], (err, results) => {
+        if (err) return res.status(500).json({ error: err });
+        res.json(results);
+    });
+});
 
 
 
