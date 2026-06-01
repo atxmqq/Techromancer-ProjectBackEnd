@@ -210,57 +210,67 @@ export default function (pool) {
     const connection = await pool.promise().getConnection();
 
     try {
-      const [orders] = await connection.query("SELECT * FROM `Order` WHERE oid = ?", [orderId]);
-      if (orders.length === 0) return res.status(404).json({ success: false });
+      // ⭐️ 1. แก้ไขตรงนี้: ดึงข้อมูล Order พร้อม JOIN เอาชื่อขนส่ง (delivery_name) มาด้วย
+      const sqlOrder = `
+        SELECT o.*, d.name AS delivery_name 
+        FROM \`Order\` o
+        LEFT JOIN Delivery_Service_Provider d ON o.did = d.did
+        WHERE o.oid = ?
+      `;
+      const [orders] = await connection.query(sqlOrder, [orderId]);
+      
+      if (orders.length === 0) return res.status(404).json({ success: false, message: "ไม่พบออเดอร์" });
 
-      // 1. ดึงรายละเอียดสินค้าปกติ
+      // 2. ดึงรายละเอียดสินค้าปกติ (คงเดิม)
       let [details] = await connection.query(`
-      SELECT od.*, p.name, p.picture_one, p.price_before 
-      FROM Order_details od 
-      LEFT JOIN Product p ON od.pid = p.pid 
-      WHERE od.order_id = ?
-    `, [orderId]);
+        SELECT od.*, p.name, p.picture_one, p.price_before 
+        FROM Order_details od 
+        LEFT JOIN Product p ON od.pid = p.pid 
+        WHERE od.order_id = ?
+      `, [orderId]);
 
-      // 2. ดึงข้อมูลคอมพิวเตอร์จัดสเปค (ถ้ามี)
+      // 3. ดึงข้อมูลคอมพิวเตอร์จัดสเปค (ถ้ามี) (คงเดิม)
       for (let item of details) {
         if (item.ctpid) {
-          const sql = `
-  SELECT c.*, 
-         p1.name as cpu_name, p1.price_before as cpu_price, p1.picture_one as cpu_img,
-         p2.name as mb_name, p2.price_before as mb_price, p2.picture_one as mb_img,
-         p3.name as vga_name, p3.price_before as vga_price, p3.picture_one as vga_img,
-         p4.name as ram_name, p4.price_before as ram_price, p4.picture_one as ram_img,
-         p5.name as hdd_name, p5.price_before as hdd_price, p5.picture_one as hdd_img,
-         p6.name as ssd_name, p6.price_before as ssd_price, p6.picture_one as ssd_img,
-         p7.name as power_name, p7.price_before as power_price, p7.picture_one as power_img,
-         p8.name as case_name, p8.price_before as case_price, p8.picture_one as case_img
-  FROM Custom_PC c
-  LEFT JOIN Product p1 ON c.Cpu = p1.pid
-  LEFT JOIN Product p2 ON c.Mainboard = p2.pid
-  LEFT JOIN Product p3 ON c.Vga = p3.pid
-  LEFT JOIN Product p4 ON c.Ram = p4.pid
-  LEFT JOIN Product p5 ON c.HDD = p5.pid
-  LEFT JOIN Product p6 ON c.SSD = p6.pid
-  LEFT JOIN Product p7 ON c.Power = p7.pid
-  LEFT JOIN Product p8 ON c.Cases = p8.pid
-  WHERE c.ctpid = ?
-`;
-          const [parts] = await connection.query(sql, [item.ctpid]);
+          const sqlParts = `
+            SELECT c.*, 
+                   p1.name as cpu_name, p1.price_before as cpu_price, p1.picture_one as cpu_img,
+                   p2.name as mb_name, p2.price_before as mb_price, p2.picture_one as mb_img,
+                   p3.name as vga_name, p3.price_before as vga_price, p3.picture_one as vga_img,
+                   p4.name as ram_name, p4.price_before as ram_price, p4.picture_one as ram_img,
+                   p5.name as hdd_name, p5.price_before as hdd_price, p5.picture_one as hdd_img,
+                   p6.name as ssd_name, p6.price_before as ssd_price, p6.picture_one as ssd_img,
+                   p7.name as power_name, p7.price_before as power_price, p7.picture_one as power_img,
+                   p8.name as case_name, p8.price_before as case_price, p8.picture_one as case_img
+            FROM Custom_PC c
+            LEFT JOIN Product p1 ON c.Cpu = p1.pid
+            LEFT JOIN Product p2 ON c.Mainboard = p2.pid
+            LEFT JOIN Product p3 ON c.Vga = p3.pid
+            LEFT JOIN Product p4 ON c.Ram = p4.pid
+            LEFT JOIN Product p5 ON c.HDD = p5.pid
+            LEFT JOIN Product p6 ON c.SSD = p6.pid
+            LEFT JOIN Product p7 ON c.Power = p7.pid
+            LEFT JOIN Product p8 ON c.Cases = p8.pid
+            WHERE c.ctpid = ?
+          `;
+          const [parts] = await connection.query(sqlParts, [item.ctpid]);
 
-          // ⭐️ เช็คข้อมูลที่ดึงมาว่ามีราคาไหม
-          console.log("Parts Data fetched:", parts[0]);
+          // console.log("Parts Data fetched:", parts[0]);
 
           if (parts.length > 0) item.parts = parts[0];
         }
       }
+      
+      // ส่งข้อมูลกลับไปให้ Frontend (ตัว orders[0] จะมี delivery_name และ tracking_number ติดไปด้วยแล้ว)
       res.json({ success: true, order: orders[0], details: details });
+      
     } catch (err) {
       console.error(err);
       res.status(500).json({ success: false, message: "Server Error" });
     } finally {
       connection.release();
     }
-  });
+});
   router.get("/order/user/:uid", async (req, res) => {
     const uid = req.params.uid;
     const connection = await pool.promise().getConnection();
