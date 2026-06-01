@@ -13,6 +13,7 @@ import addressRouter from './api/address.js';
 import paymentRoutes from './api/payment.js';
 import orderRoute from './api/order.js';
 import custompcRoute from './api/custompc.js';
+import employee from './api/employee.js';
 const app = express();
 const port = 3001;
 
@@ -32,6 +33,7 @@ app.use('/api', paymentRoutes); // อันนี้ไม่ได้ส่ง
 app.use('/api', orderRoute(pool));
 app.use('/uploads', express.static('uploads'));
 app.use('/api', custompcRoute(pool));
+app.use('/api', employee(pool));
 
 
 app.listen(port, () => {
