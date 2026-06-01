@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 
 // Import pool จากไฟล์ db.js ที่เราสร้างไว้
-import pool from './db.js'; 
+import pool from './db.js';
 
 import loginRoute from './api/login.js';
 import register from './api/register.js';
@@ -34,7 +34,7 @@ app.use('/api', orderRoute(pool));
 app.use('/uploads', express.static('uploads'));
 app.use('/api', custompcRoute(pool));
 app.use('/api', employee(pool));
-
+app.use('/uploadsEmployeeProfile', express.static('uploadsEmployeeProfile'));
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
