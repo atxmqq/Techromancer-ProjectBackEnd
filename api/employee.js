@@ -192,6 +192,50 @@ export default function (pool) {
         });
     });
 
-    
+
+    // --- API สำหรับเปลี่ยนรหัสผ่านพนักงาน/แอดมิน ---
+    router.put('/employee/change-password/:eid', async (req, res) => {
+        const { eid } = req.params;
+        const { oldPassword, newPassword } = req.body;
+
+        try {
+            // 1. เพิ่มการดึง type ออกมาเพื่อใช้เช็คเงื่อนไข
+            pool.query('SELECT password, type FROM Employee WHERE eid = ?', [eid], async (err, results) => {
+                if (err) return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูล' });
+                if (results.length === 0) return res.status(404).json({ error: 'ไม่พบพนักงานในระบบ' });
+
+                const storedPassword = results[0].password;
+                const empType = results[0].type;
+
+                let isMatch = false;
+                let finalNewPassword = newPassword;
+
+                // 👇 2. แบ่งการทำงานระหว่าง Admin กับตำแหน่งอื่นๆ
+                if (empType === 'Admin') {
+                    // Admin: เช็ครหัสตรงๆ และ ไม่แฮชรหัสใหม่
+                    isMatch = (oldPassword === storedPassword);
+                    finalNewPassword = newPassword;
+                } else {
+                    // Employee อื่นๆ: เช็คด้วย bcrypt และ แฮชรหัสใหม่
+                    isMatch = await bcrypt.compare(oldPassword, storedPassword);
+                    finalNewPassword = await bcrypt.hash(newPassword, 10);
+                }
+
+                if (!isMatch) {
+                    return res.status(400).json({ error: 'รหัสผ่านเดิมไม่ถูกต้อง' });
+                }
+
+                // 3. อัปเดตรหัสผ่านลง Database (ใช้ finalNewPassword ที่ผ่านเงื่อนไขด้านบนมาแล้ว)
+                pool.query('UPDATE Employee SET password = ? WHERE eid = ?', [finalNewPassword, eid], (updateErr) => {
+                    if (updateErr) return res.status(500).json({ error: 'อัปเดตรหัสผ่านล้มเหลว' });
+                    res.json({ message: 'เปลี่ยนรหัสผ่านสำเร็จ' });
+                });
+            });
+        } catch (error) {
+            res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
+        }
+    });
+
+
     return router;
 }
