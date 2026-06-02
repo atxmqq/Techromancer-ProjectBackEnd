@@ -160,7 +160,7 @@ export default function (pool) {
                     console.error('Error updating employee info:', updateErr);
                     return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูล' });
                 }
-                
+
                 if (updateResults.affectedRows === 0) {
                     return res.status(404).json({ error: 'ไม่พบข้อมูลพนักงาน' });
                 }
@@ -170,5 +170,28 @@ export default function (pool) {
         });
     });
 
+
+    // --- API สำหรับอัปเดตสถานะพนักงาน ---
+    router.put('/employee/update-status/:eid', (req, res) => {
+        const { eid } = req.params;
+        const { status } = req.body;
+
+        const sqlQuery = `UPDATE Employee SET status = ? WHERE eid = ?`;
+
+        pool.query(sqlQuery, [status, eid], (err, results) => {
+            if (err) {
+                console.error('Error updating status:', err);
+                return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการอัปเดตสถานะ' });
+            }
+
+            if (results.affectedRows === 0) {
+                return res.status(404).json({ error: 'ไม่พบข้อมูลพนักงาน' });
+            }
+
+            res.json({ message: 'อัปเดตสถานะพนักงานสำเร็จ' });
+        });
+    });
+
+    
     return router;
 }

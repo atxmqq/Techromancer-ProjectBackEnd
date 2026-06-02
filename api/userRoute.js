@@ -5,7 +5,7 @@ export default function (pool) {
     // ดึงผู้ใช้ทั้งหมด
     router.get('/users', (req, res) => {
         pool.query(
-            'SELECT uid, email, username, fullname, phone FROM User',
+            'SELECT uid, email, username, fullname, phone, status FROM User',
             (err, results) => {
                 if (err) {
                     console.error('Error finding user:', err);
@@ -20,12 +20,32 @@ export default function (pool) {
     router.get('/users/:uid', (req, res) => {
         const { uid } = req.params;
         pool.query(
-            'SELECT uid, email, username, fullname, phone FROM User WHERE uid = ?',
+            'SELECT uid, email, username, fullname, phone, address, status FROM User WHERE uid = ?',
             [uid],
             (err, results) => {
                 if (err) return res.status(500).json({ error: 'เกิดข้อผิดพลาด' });
                 if (results.length === 0) return res.status(404).json({ error: 'ไม่พบผู้ใช้' });
                 res.json(results[0]);
+            }
+        );
+    });
+
+    router.put('/users/update-status/:uid', (req, res) => {
+        const { uid } = req.params;
+        const { status } = req.body;
+
+        pool.query(
+            'UPDATE User SET status = ? WHERE uid = ?',
+            [status, uid],
+            (err, results) => {
+                if (err) {
+                    console.error('Error updating user status:', err);
+                    return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการอัปเดตสถานะ' });
+                }
+                if (results.affectedRows === 0) {
+                    return res.status(404).json({ error: 'ไม่พบข้อมูลผู้ใช้' });
+                }
+                res.json({ message: 'อัปเดตสถานะผู้ใช้สำเร็จ' });
             }
         );
     });
@@ -52,7 +72,7 @@ export default function (pool) {
                     try {
                         // 2. เปรียบเทียบรหัสเก่าที่พิมพ์มา กับรหัสใน Database
                         const isMatch = await bcrypt.compare(oldPassword, storedHashedPassword);
-                        
+
                         if (!isMatch) {
                             // ถ้ารหัสเดิมผิด ให้เตะกลับไปเลย
                             return res.status(400).json({ error: 'รหัสผ่านเดิมไม่ถูกต้อง' });
