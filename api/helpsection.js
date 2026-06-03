@@ -69,5 +69,18 @@ export default function (pool) {
             }
         );
     });
+    router.get('/help', async (req, res) => {
+    try {
+      // ดึงคำถาม คำตอบ และวันที่อัปเดต (เรียงจากอัปเดตล่าสุดไปเก่าสุด)
+      const [results] = await pool.promise().query(
+        'SELECT question, answer, date_updated FROM Help_Section ORDER BY date_updated DESC'
+      );
+      
+      res.json({ success: true, data: results });
+    } catch (error) {
+      console.error('Error fetching help section:', error);
+      res.status(500).json({ success: false, message: 'ไม่สามารถดึงข้อมูลช่วยเหลือได้' });
+    }
+  });
     return router;
 }
