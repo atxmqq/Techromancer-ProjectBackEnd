@@ -19,6 +19,7 @@ export default function (pool) {
       SELECT 
         o.*, 
         u.fullname, 
+        e.username AS updater_name,
         m.bank_name,
         d.name AS delivery_name,
         od.od_id,
@@ -45,6 +46,7 @@ export default function (pool) {
         
       FROM \`Order\` o
       LEFT JOIN User u ON o.uid = u.uid
+      LEFT JOIN Employee e ON o.eid = e.eid
       LEFT JOIN Money_Account m ON o.mid = m.mid
       LEFT JOIN Delivery_Service_Provider d ON o.did = d.did
       LEFT JOIN Order_details od ON o.oid = od.order_id
@@ -338,7 +340,7 @@ export default function (pool) {
         WHERE o.oid = ?
       `;
       const [orders] = await connection.query(sqlOrder, [orderId]);
-      
+
       if (orders.length === 0) return res.status(404).json({ success: false, message: "ไม่พบออเดอร์" });
 
       // 2. ดึงรายละเอียดสินค้าปกติ (คงเดิม)
@@ -380,17 +382,17 @@ export default function (pool) {
           if (parts.length > 0) item.parts = parts[0];
         }
       }
-      
+
       // ส่งข้อมูลกลับไปให้ Frontend (ตัว orders[0] จะมี delivery_name และ tracking_number ติดไปด้วยแล้ว)
       res.json({ success: true, order: orders[0], details: details });
-      
+
     } catch (err) {
       console.error(err);
       res.status(500).json({ success: false, message: "Server Error" });
     } finally {
       connection.release();
     }
-});
+  });
   router.get("/order/user/:uid", async (req, res) => {
     const uid = req.params.uid;
     const connection = await pool.promise().getConnection();
