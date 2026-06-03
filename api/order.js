@@ -247,7 +247,7 @@ export default function (pool) {
       // 1. บันทึก Order
       const [userRows] = await connection.query("SELECT username FROM User WHERE uid = ?", [uid]);
       const username = userRows.length > 0 ? userRows[0].username : null;
-      const orderSql = `INSERT INTO \`Order\` (uid, username, order_date, total_price, status, payment_image, mid) VALUES (?, ?, NOW(), ?, 'จัดเตรียมสินค้า', ?, ?)`;
+      const orderSql = `INSERT INTO \`Order\` (uid, username, order_date, total_price, status, payment_image, mid) VALUES (?, ?, NOW(), ?, 'รอตรวจสอบการชำระเงิน', ?, ?)`;
       const [orderResult] = await connection.query(orderSql, [uid, username, total_price, payment_image, mid]);
       const orderId = orderResult.insertId;
 
@@ -287,7 +287,7 @@ export default function (pool) {
       // บันทึก Order
       const [userRows] = await connection.query("SELECT username FROM User WHERE uid = ?", [uid]);
       const username = userRows.length > 0 ? userRows[0].username : null;
-      const orderSql = `INSERT INTO \`Order\` (uid, username, order_date, total_price, status, payment_image, mid) VALUES (?, ?, NOW(), ?, 'จัดเตรียมสินค้า', ?, ?)`;
+      const orderSql = `INSERT INTO \`Order\` (uid, username, order_date, total_price, status, payment_image, mid) VALUES (?, ?, NOW(), ?, 'รอตรวจสอบการชำระเงิน', ?, ?)`;
       const [orderResult] = await connection.query(orderSql, [uid, username, total_price, payment_image, mid]);
       const orderId = orderResult.insertId;
 
@@ -438,6 +438,31 @@ export default function (pool) {
       connection.release();
     }
   });
+  // Route สำหรับแก้ไข/อัปเดตสลิปโอนเงิน (PUT /api/order/update-payment/:id)
+router.put('/order/update-payment/:id', async (req, res) => {
+  const orderId = req.params.id;
+  const { payment_image } = req.body;
 
+  if (!payment_image) {
+    return res.status(400).json({ success: false, message: "กรุณาส่งข้อมูลรูปภาพมาด้วย" });
+  }
+
+  try {
+    // อัปเดตรูปภาพใหม่ลงในตาราง Order
+    const [result] = await pool.promise().query(
+      "UPDATE `Order` SET payment_image = ? WHERE oid = ?",
+      [payment_image, orderId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "ไม่พบออเดอร์นี้" });
+    }
+
+    res.json({ success: true, message: "อัปเดตหลักฐานการชำระเงินเรียบร้อย" });
+  } catch (error) {
+    console.error("Error updating payment image:", error);
+    res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการอัปเดต" });
+  }
+});
   return router;
 }
