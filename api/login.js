@@ -42,7 +42,7 @@ export default function (pool) {
     );
   });
 
-  router.post('/loginemployee', async (req, res) => {
+router.post('/loginemployee', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -60,6 +60,18 @@ export default function (pool) {
         }
 
         const employee = results[0];
+        let passwordMatch = false;
+
+        // 👇 เช็คประเภทพนักงาน ถ้าเป็น Admin ให้เทียบรหัสผ่านตรงๆ ถ้าไม่ใช่ให้เทียบด้วย bcrypt
+        if (employee.type === 'Admin') {
+          passwordMatch = (password === employee.password); 
+        } else {
+          passwordMatch = await bcrypt.compare(password, employee.password); 
+        }
+
+        if (!passwordMatch) {
+          return res.status(401).json({ error: 'Email หรือ Password ไม่ถูกต้อง' });
+        }
 
         res.json({
           message: 'เข้าสู่ระบบสำเร็จ',

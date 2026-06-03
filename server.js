@@ -15,6 +15,8 @@ import orderRoute from './api/order.js';
 import custompcRoute from './api/custompc.js';
 import employee from './api/employee.js';
 import storeInfoRouter from './api/storeinfo.js';
+import helpsection from './api/helpsection.js';
+
 const app = express();
 const port = 3001;
 
@@ -37,6 +39,7 @@ app.use('/api', custompcRoute(pool));
 app.use('/api', employee(pool));
 app.use('/uploadsEmployeeProfile', express.static('uploadsEmployeeProfile'));
 app.use('/api', storeInfoRouter(pool));
+app.use('/api', helpsection(pool));
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
