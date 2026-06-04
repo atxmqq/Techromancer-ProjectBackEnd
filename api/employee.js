@@ -105,29 +105,32 @@ export default function (pool) {
         });
     });
 
-    router.put('/employee/update-house-reg/:eid', upload.single('house_reg_image'), (req, res) => {
-        const { eid } = req.params;
+   // API สำหรับอัปเดตสำเนาทะเบียนบ้าน (รับเป็น Base64)
+  router.put('/employee/update-house-reg/:eid', async (req, res) => {
+    const { eid } = req.params;
+    const { house_reg_image } = req.body; // รับ Base64 มาจาก req.body โดยตรง
 
-        if (!req.file) {
-            return res.status(400).json({ error: 'กรุณาเลือกไฟล์รูปภาพ' });
-        }
+    if (!house_reg_image) {
+      return res.status(400).json({ error: "ไม่มีรูปภาพส่งมา" });
+    }
 
-        const imageUrl = `http://localhost:3001/uploadsEmployeeProfile/${req.file.filename}`;
-        const sqlQuery = `UPDATE Employee SET house_registration = ? WHERE eid = ?`;
+    try {
+      // บันทึก Base64 ลงในฐานข้อมูลตรงๆ
+      const [result] = await pool.promise().query(
+        "UPDATE Employee SET house_registration = ? WHERE eid = ?",
+        [house_reg_image, eid]
+      );
 
-        pool.query(sqlQuery, [imageUrl, eid], (err, results) => {
-            if (err) {
-                console.error('Error updating house registration image:', err);
-                return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการบันทึกรูปทะเบียนบ้าน' });
-            }
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "ไม่พบข้อมูลพนักงาน" });
+      }
 
-            if (results.affectedRows === 0) {
-                return res.status(404).json({ error: 'ไม่พบข้อมูลพนักงาน' });
-            }
-
-            res.json({ message: 'อัปโหลดทะเบียนบ้านสำเร็จ', houseRegUrl: imageUrl });
-        });
-    });
+      res.json({ success: true, message: "อัปโหลดสำเร็จ" });
+    } catch (error) {
+      console.error("Error updating house registration:", error);
+      res.status(500).json({ error: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์" });
+    }
+  });
 
     // --- API สำหรับอัปเดตข้อมูลส่วนตัว (แก้บั๊ก SQL Syntax เรียบร้อย) ---
     router.put('/employee/update-info/:eid', (req, res) => {
