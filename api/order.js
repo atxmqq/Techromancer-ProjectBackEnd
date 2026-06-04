@@ -82,7 +82,7 @@ export default function (pool) {
 
           // ลบฟิลด์ชั่วคราวที่ไม่ต้องการให้อยู่ในระดับบนสุดออก
           const keysToDelete = [
-            'od_id', 'pid', 'product_name', 'amount', 'price', 'delivery_type', 'order_type', 'ctpid',
+            'od_id', 'pid', 'product_name', 'picture_one', 'amount', 'price', 'delivery_type', 'order_type', 'ctpid',
             'Cpu', 'Mainboard', 'Vga', 'Ram', 'HDD', 'SSD', 'Power', 'Cases',
             'cpu_name', 'mainboard_name', 'vga_name', 'ram_name', 'hdd_name', 'ssd_name', 'power_name', 'cases_name'
           ];
@@ -132,6 +132,100 @@ export default function (pool) {
     });
   });
 
+
+  router.get('/order/reviews', (req, res) => {
+    const sqlQuery = `
+      SELECT 
+        o.*, 
+        u.fullname, 
+        e.username AS updater_name,
+        m.bank_name,
+        d.name AS delivery_name,
+        od.od_id,
+        od.pid,
+        p.name AS product_name,
+        p.picture_one, /* ดึงคอลัมน์รูปมาใช้ในรีวิว */
+        od.amount, 
+        od.price,
+        od.delivery_type,
+        od.order_type,
+        od.ctpid,
+        c.Cpu, c.Mainboard, c.Vga, c.Ram, c.HDD, c.SSD, c.Power, c.Cases,
+        p_cpu.name AS cpu_name,
+        p_mb.name AS mainboard_name,
+        p_vga.name AS vga_name,
+        p_ram.name AS ram_name,
+        p_hdd.name AS hdd_name,
+        p_ssd.name AS ssd_name,
+        p_pow.name AS power_name,
+        p_cas.name AS cases_name
+      FROM \`Order\` o
+      LEFT JOIN User u ON o.uid = u.uid
+      LEFT JOIN Employee e ON o.eid = e.eid
+      LEFT JOIN Money_Account m ON o.mid = m.mid
+      LEFT JOIN Delivery_Service_Provider d ON o.did = d.did
+      LEFT JOIN Order_details od ON o.oid = od.order_id
+      LEFT JOIN Product p ON od.pid = p.pid
+      LEFT JOIN Custom_PC c ON od.ctpid = c.ctpid 
+      LEFT JOIN Product p_cpu ON c.Cpu = p_cpu.pid
+      LEFT JOIN Product p_mb ON c.Mainboard = p_mb.pid
+      LEFT JOIN Product p_vga ON c.Vga = p_vga.pid
+      LEFT JOIN Product p_ram ON c.Ram = p_ram.pid
+      LEFT JOIN Product p_hdd ON c.HDD = p_hdd.pid
+      LEFT JOIN Product p_ssd ON c.SSD = p_ssd.pid
+      LEFT JOIN Product p_pow ON c.Power = p_pow.pid
+      LEFT JOIN Product p_cas ON c.Cases = p_cas.pid
+      WHERE o.review IS NOT NULL AND TRIM(o.review) != ''
+      ORDER BY o.oid DESC
+    `;
+
+    pool.query(sqlQuery, (err, results) => {
+      if (err) return res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
+
+      const ordersMap = new Map();
+      results.forEach(row => {
+        if (!ordersMap.has(row.oid)) {
+          const orderData = { ...row, order_details: [] };
+          const keysToDelete = [
+            'od_id', 'pid', 'product_name', 'picture_one', 'amount', 'price', 'delivery_type', 'order_type', 'ctpid',
+            'Cpu', 'Mainboard', 'Vga', 'Ram', 'HDD', 'SSD', 'Power', 'Cases',
+            'cpu_name', 'mainboard_name', 'vga_name', 'ram_name', 'hdd_name', 'ssd_name', 'power_name', 'cases_name'
+          ];
+          keysToDelete.forEach(k => delete orderData[k]);
+          ordersMap.set(row.oid, orderData);
+        }
+
+        if (row.od_id) {
+          let itemData = {
+            od_id: row.od_id,
+            pid: row.pid,
+            product_name: row.product_name,
+            picture_one: row.picture_one, // เก็บรูปไว้แสดงหน้าเว็บ
+            amount: row.amount,
+            price: row.price,
+            delivery_type: row.delivery_type,
+            order_type: row.order_type,
+            ctpid: row.ctpid
+          };
+
+          if (row.ctpid) {
+            itemData.ctpid_details = {
+              Cpu: row.Cpu, Cpu_name: row.cpu_name,
+              Mainboard: row.Mainboard, Mainboard_name: row.mainboard_name,
+              Vga: row.Vga, Vga_name: row.vga_name,
+              Ram: row.Ram, Ram_name: row.ram_name,
+              HDD: row.HDD, HDD_name: row.hdd_name,
+              SSD: row.SSD, SSD_name: row.ssd_name,
+              Power: row.Power, Power_name: row.power_name,
+              Cases: row.Cases, Cases_name: row.cases_name
+            };
+          }
+          ordersMap.get(row.oid).order_details.push(itemData);
+        }
+      });
+      res.json(Array.from(ordersMap.values()));
+    });
+  });
 
 
   router.put('/order/update/:oid', (req, res) => {
@@ -327,6 +421,8 @@ export default function (pool) {
       connection.release();
     }
   });
+
+
   router.get("/order/:id", async (req, res) => {
     const orderId = req.params.id;
     const connection = await pool.promise().getConnection();
@@ -393,6 +489,8 @@ export default function (pool) {
       connection.release();
     }
   });
+
+
   router.get("/order/user/:uid", async (req, res) => {
     const uid = req.params.uid;
     const connection = await pool.promise().getConnection();
@@ -417,6 +515,8 @@ export default function (pool) {
       connection.release();
     }
   });
+
+
   router.put("/order/cancel/:id", async (req, res) => {
     const orderId = req.params.id;
     const connection = await pool.promise().getConnection();
@@ -441,32 +541,32 @@ export default function (pool) {
     }
   });
   // Route สำหรับแก้ไข/อัปเดตสลิปโอนเงิน (PUT /api/order/update-payment/:id)
-router.put('/order/update-payment/:id', async (req, res) => {
-  const orderId = req.params.id;
-  const { payment_image } = req.body;
+  router.put('/order/update-payment/:id', async (req, res) => {
+    const orderId = req.params.id;
+    const { payment_image } = req.body;
 
-  if (!payment_image) {
-    return res.status(400).json({ success: false, message: "กรุณาส่งข้อมูลรูปภาพมาด้วย" });
-  }
-
-  try {
-    // อัปเดตรูปภาพใหม่ลงในตาราง Order
-    const [result] = await pool.promise().query(
-      "UPDATE `Order` SET payment_image = ? WHERE oid = ?",
-      [payment_image, orderId]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "ไม่พบออเดอร์นี้" });
+    if (!payment_image) {
+      return res.status(400).json({ success: false, message: "กรุณาส่งข้อมูลรูปภาพมาด้วย" });
     }
 
-    res.json({ success: true, message: "อัปเดตหลักฐานการชำระเงินเรียบร้อย" });
-  } catch (error) {
-    console.error("Error updating payment image:", error);
-    res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการอัปเดต" });
-  }
-});
-// Route สำหรับบันทึกรีวิว (PUT /api/order/review/:id)
+    try {
+      // อัปเดตรูปภาพใหม่ลงในตาราง Order
+      const [result] = await pool.promise().query(
+        "UPDATE `Order` SET payment_image = ? WHERE oid = ?",
+        [payment_image, orderId]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ success: false, message: "ไม่พบออเดอร์นี้" });
+      }
+
+      res.json({ success: true, message: "อัปเดตหลักฐานการชำระเงินเรียบร้อย" });
+    } catch (error) {
+      console.error("Error updating payment image:", error);
+      res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการอัปเดต" });
+    }
+  });
+  // Route สำหรับบันทึกรีวิว (PUT /api/order/review/:id)
   router.put('/order/review/:id', async (req, res) => {
     const orderId = req.params.id;
     const { review } = req.body;
@@ -492,5 +592,9 @@ router.put('/order/update-payment/:id', async (req, res) => {
       res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการบันทึกรีวิว" });
     }
   });
+
+
+
+
   return router;
 }

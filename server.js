@@ -26,8 +26,6 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 console.log('✅ Database pool is ready to use');
 
-console.log('✅ Database pool is ready to use');
-
 // ส่ง pool ที่ดึงมา เข้าไปใน Route ต่างๆ
 app.use('/api', loginRoute(pool));
 app.use('/api', register(pool));
