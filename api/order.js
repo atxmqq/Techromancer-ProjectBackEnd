@@ -14,36 +14,15 @@ export default function (pool) {
 
 
   router.get('/order', (req, res) => {
-    // LEFT JOIN ตาราง Product แยกตามชิ้นส่วนเพื่อดึงชื่อ (name) ออกมา
     const sqlQuery = `
-      SELECT 
-        o.*, 
-        u.fullname, 
-        e.username AS updater_name,
-        m.bank_name,
-        d.name AS delivery_name,
-        od.od_id,
-        od.pid,
-        p.name AS product_name,
-        od.amount, 
-        od.price,
-        od.delivery_type,
-        od.order_type,
-        od.ctpid,
-        
-        /* ดึงไอดีชิ้นส่วน */
+      SELECT o.*, u.fullname, e.username AS updater_name, m.bank_name, d.name AS delivery_name,
+        od.od_id, od.pid, p.name AS product_name, 
+        p.picture_one, /* 👈 เพิ่มดึงรูปตรงนี้ */
+        od.amount, od.price, od.delivery_type, od.order_type, od.ctpid,
         c.Cpu, c.Mainboard, c.Vga, c.Ram, c.HDD, c.SSD, c.Power, c.Cases,
-        
-        /* ดึงชื่อชิ้นส่วนจากตาราง Product */
-        p_cpu.name AS cpu_name,
-        p_mb.name AS mainboard_name,
-        p_vga.name AS vga_name,
-        p_ram.name AS ram_name,
-        p_hdd.name AS hdd_name,
-        p_ssd.name AS ssd_name,
-        p_pow.name AS power_name,
-        p_cas.name AS cases_name
-        
+        p_cpu.name AS cpu_name, p_mb.name AS mainboard_name, p_vga.name AS vga_name,
+        p_ram.name AS ram_name, p_hdd.name AS hdd_name, p_ssd.name AS ssd_name,
+        p_pow.name AS power_name, p_cas.name AS cases_name
       FROM \`Order\` o
       LEFT JOIN User u ON o.uid = u.uid
       LEFT JOIN Employee e ON o.eid = e.eid
@@ -51,11 +30,7 @@ export default function (pool) {
       LEFT JOIN Delivery_Service_Provider d ON o.did = d.did
       LEFT JOIN Order_details od ON o.oid = od.order_id
       LEFT JOIN Product p ON od.pid = p.pid
-      
-      /* เชื่อมตารางชิ้นส่วนคอมพิวเตอร์ */
       LEFT JOIN Custom_PC c ON od.ctpid = c.ctpid 
-      
-      /* เชื่อมตาราง Product ซ้ำเพื่อหาชื่อของแต่ละอุปกรณ์ */
       LEFT JOIN Product p_cpu ON c.Cpu = p_cpu.pid
       LEFT JOIN Product p_mb ON c.Mainboard = p_mb.pid
       LEFT JOIN Product p_vga ON c.Vga = p_vga.pid
@@ -64,25 +39,17 @@ export default function (pool) {
       LEFT JOIN Product p_ssd ON c.SSD = p_ssd.pid
       LEFT JOIN Product p_pow ON c.Power = p_pow.pid
       LEFT JOIN Product p_cas ON c.Cases = p_cas.pid
-      
       ORDER BY o.oid DESC
     `;
 
     pool.query(sqlQuery, (err, results) => {
-      if (err) {
-        console.error('Error fetching orders:', err);
-        return res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
-      }
-
+      if (err) return res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
       const ordersMap = new Map();
-
       results.forEach(row => {
         if (!ordersMap.has(row.oid)) {
           const orderData = { ...row, order_details: [] };
-
-          // ลบฟิลด์ชั่วคราวที่ไม่ต้องการให้อยู่ในระดับบนสุดออก
           const keysToDelete = [
-            'od_id', 'pid', 'product_name', 'picture_one', 'amount', 'price', 'delivery_type', 'order_type', 'ctpid',
+            'od_id', 'pid', 'product_name', 'picture_one', 'amount', 'price', 'delivery_type', 'order_type', 'ctpid', // 👈 เพิ่ม picture_one
             'Cpu', 'Mainboard', 'Vga', 'Ram', 'HDD', 'SSD', 'Power', 'Cases',
             'cpu_name', 'mainboard_name', 'vga_name', 'ram_name', 'hdd_name', 'ssd_name', 'power_name', 'cases_name'
           ];
@@ -92,42 +59,21 @@ export default function (pool) {
 
         if (row.od_id) {
           let itemData = {
-            od_id: row.od_id,
-            pid: row.pid,
-            product_name: row.product_name,
-            amount: row.amount,
-            price: row.price,
-            delivery_type: row.delivery_type,
-            order_type: row.order_type,
-            ctpid: row.ctpid
+            od_id: row.od_id, pid: row.pid, product_name: row.product_name,
+            picture_one: row.picture_one, // 👈 เก็บรูปลง Object
+            amount: row.amount, price: row.price, delivery_type: row.delivery_type, order_type: row.order_type, ctpid: row.ctpid
           };
-
-          // จัดโครงสร้าง ctpid_details ให้เก็บทั้ง ไอดี และ ชื่อสินค้า ตามที่อยากได้
           if (row.ctpid) {
             itemData.ctpid_details = {
-              Cpu: row.Cpu,
-              Cpu_name: row.cpu_name,
-              Mainboard: row.Mainboard,
-              Mainboard_name: row.mainboard_name,
-              Vga: row.Vga,
-              Vga_name: row.vga_name,
-              Ram: row.Ram,
-              Ram_name: row.ram_name,
-              HDD: row.HDD,
-              HDD_name: row.hdd_name,
-              SSD: row.SSD,
-              SSD_name: row.ssd_name,
-              Power: row.Power,
-              Power_name: row.power_name,
-              Cases: row.Cases,
-              Cases_name: row.cases_name
+              Cpu: row.Cpu, Cpu_name: row.cpu_name, Mainboard: row.Mainboard, Mainboard_name: row.mainboard_name,
+              Vga: row.Vga, Vga_name: row.vga_name, Ram: row.Ram, Ram_name: row.ram_name,
+              HDD: row.HDD, HDD_name: row.hdd_name, SSD: row.SSD, SSD_name: row.ssd_name,
+              Power: row.Power, Power_name: row.power_name, Cases: row.Cases, Cases_name: row.cases_name
             };
           }
-
           ordersMap.get(row.oid).order_details.push(itemData);
         }
       });
-
       res.json(Array.from(ordersMap.values()));
     });
   });
