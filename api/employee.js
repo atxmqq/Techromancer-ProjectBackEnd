@@ -235,7 +235,32 @@ export default function (pool) {
             res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
         }
     });
+    // API สำหรับอัปเดตที่อยู่พนักงานโดยเฉพาะ (ตาราง Employee)
+  router.put('/employee/update-address/:eid', async (req, res) => {
+    const { eid } = req.params;
+    const { address } = req.body;
 
+    if (!address) {
+      return res.status(400).json({ error: "ไม่มีข้อมูลที่อยู่ส่งมา" });
+    }
+
+    try {
+      // อัปเดตคอลัมน์ address ลงในตาราง Employee
+      const [result] = await pool.promise().query(
+        "UPDATE Employee SET address = ? WHERE eid = ?",
+        [address, eid]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "ไม่พบข้อมูลพนักงาน" });
+      }
+
+      res.json({ success: true, message: "อัปเดตที่อยู่พนักงานสำเร็จ" });
+    } catch (error) {
+      console.error("Error updating employee address:", error);
+      res.status(500).json({ error: "เกิดข้อผิดพลาดในการอัปเดตที่อยู่" });
+    }
+  });
 
     return router;
 }
