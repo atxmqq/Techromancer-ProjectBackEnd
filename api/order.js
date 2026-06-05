@@ -445,11 +445,11 @@ export default function (pool) {
       SELECT o.*, od.order_type, 
              MAX(p.name) as product_name, 
              MAX(p.picture_one) as picture_one,
-             d.name as delivery_name  -- ⭐️ ดึงชื่อขนส่งออกมา
+             d.name as delivery_name  -- ⭐️ ตรงนี้สำคัญ: เราดึงจาก d.name แต่ตั้งชื่อว่า delivery_name
       FROM \`Order\` o
       LEFT JOIN Order_details od ON o.oid = od.order_id
       LEFT JOIN Product p ON od.pid = p.pid
-      LEFT JOIN Delivery_Service_Provider d ON o.did = d.did -- ⭐️ JOIN ตารางขนส่ง
+      LEFT JOIN Delivery_Service_Provider d ON o.did = d.did 
       WHERE o.uid = ?
       GROUP BY o.oid
       ORDER BY o.order_date DESC
@@ -457,7 +457,7 @@ export default function (pool) {
     const [orders] = await connection.query(sql, [uid]);
     res.json({ success: true, orders: orders });
   } catch (err) {
-    console.error(err); // แนะนำให้ log error ไว้ดูครับ
+    console.error(err);
     res.status(500).json({ success: false, message: "ดึงข้อมูลล้มเหลว" });
   } finally {
     connection.release();
