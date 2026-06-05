@@ -88,7 +88,7 @@ export default function (pool) {
             return res.status(400).json({ error: 'กรุณาเลือกไฟล์รูปภาพ' });
         }
 
-        const imageUrl = `http://localhost:3001/uploadsEmployeeProfile/${req.file.filename}`;
+        const imageUrl = `https://techromancer.onrender.com/uploadsEmployeeProfile/${req.file.filename}`;
         const sqlQuery = `UPDATE Employee SET profile = ? WHERE eid = ?`;
 
         pool.query(sqlQuery, [imageUrl, eid], (err, results) => {

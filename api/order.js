@@ -258,7 +258,7 @@ export default function (pool) {
       }
 
       // ส่ง response กลับไป
-      res.json({ success: true, url: `http://localhost:3001/uploads/${req.file.filename}` });
+      res.json({ success: true, url: `https://techromancer.onrender.com/uploads/${req.file.filename}` });
 
     } catch (error) {
       console.error("เกิดข้อผิดพลาดในการอัปโหลด:", error);

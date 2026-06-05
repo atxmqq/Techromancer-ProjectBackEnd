@@ -18,7 +18,7 @@ import storeInfoRouter from './api/storeinfo.js';
 import helpsection from './api/helpsection.js';
 
 const app = express();
-const port = 3001;
+const port = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
