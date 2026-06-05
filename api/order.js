@@ -438,29 +438,31 @@ export default function (pool) {
 
 
   router.get("/order/user/:uid", async (req, res) => {
-    const uid = req.params.uid;
-    const connection = await pool.promise().getConnection();
-    try {
-      // ⭐️ เพิ่มการดึงข้อมูลโดยใช้ MAX เพื่อเลี่ยงค่า NULL ถ้าเป็นไปได้
-      const sql = `
+  const uid = req.params.uid;
+  const connection = await pool.promise().getConnection();
+  try {
+    const sql = `
       SELECT o.*, od.order_type, 
              MAX(p.name) as product_name, 
-             MAX(p.picture_one) as picture_one
+             MAX(p.picture_one) as picture_one,
+             d.name as delivery_name  -- ⭐️ ดึงชื่อขนส่งออกมา
       FROM \`Order\` o
       LEFT JOIN Order_details od ON o.oid = od.order_id
       LEFT JOIN Product p ON od.pid = p.pid
+      LEFT JOIN Delivery_Service_Provider d ON o.did = d.did -- ⭐️ JOIN ตารางขนส่ง
       WHERE o.uid = ?
       GROUP BY o.oid
       ORDER BY o.order_date DESC
     `;
-      const [orders] = await connection.query(sql, [uid]);
-      res.json({ success: true, orders: orders });
-    } catch (err) {
-      res.status(500).json({ success: false, message: "ดึงข้อมูลล้มเหลว" });
-    } finally {
-      connection.release();
-    }
-  });
+    const [orders] = await connection.query(sql, [uid]);
+    res.json({ success: true, orders: orders });
+  } catch (err) {
+    console.error(err); // แนะนำให้ log error ไว้ดูครับ
+    res.status(500).json({ success: false, message: "ดึงข้อมูลล้มเหลว" });
+  } finally {
+    connection.release();
+  }
+});
 
 
   router.put("/order/cancel/:id", async (req, res) => {
