@@ -81,29 +81,36 @@ export default function (pool) {
         }
     });
 
-    router.put('/employee/update-profile/:eid', upload.single('profile_image'), (req, res) => {
-        const { eid } = req.params;
+    // ในไฟล์ employee.js
 
-        if (!req.file) {
-            return res.status(400).json({ error: 'กรุณาเลือกไฟล์รูปภาพ' });
+// ⭐️ ลบ upload.single('profile_image') ออกไปเลย
+router.put('/employee/update-profile/:eid', async (req, res) => {
+    const { eid } = req.params;
+    
+    // ⭐️ รับค่าแบบ JSON (Base64)
+    const { profile_image } = req.body; 
+
+    if (!profile_image) {
+        return res.status(400).json({ error: 'กรุณาเลือกไฟล์รูปภาพ' });
+    }
+
+    try {
+        // อัปเดตลง Database ในคอลัมน์ profile (ต้องเป็น LONGTEXT)
+        const sqlQuery = `UPDATE Employee SET profile = ? WHERE eid = ?`;
+        
+        // ใช้ pool.promise() ให้เหมือนกับที่คุณทำใน house_reg
+        const [result] = await pool.promise().query(sqlQuery, [profile_image, eid]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'ไม่พบข้อมูลพนักงาน' });
         }
 
-        const imageUrl = `https://techromancer.onrender.com/uploadsEmployeeProfile/${req.file.filename}`;
-        const sqlQuery = `UPDATE Employee SET profile = ? WHERE eid = ?`;
-
-        pool.query(sqlQuery, [imageUrl, eid], (err, results) => {
-            if (err) {
-                console.error('Error updating profile image:', err);
-                return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการบันทึกรูปโปรไฟล์' });
-            }
-
-            if (results.affectedRows === 0) {
-                return res.status(404).json({ error: 'ไม่พบข้อมูลพนักงาน' });
-            }
-
-            res.json({ message: 'อัปเดตโปรไฟล์สำเร็จ', profileUrl: imageUrl });
-        });
-    });
+        res.json({ message: 'อัปเดตโปรไฟล์สำเร็จ', profileUrl: profile_image });
+    } catch (err) {
+        console.error('Error updating profile image:', err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาดในการบันทึกรูปโปรไฟล์' });
+    }
+});
 
    // API สำหรับอัปเดตสำเนาทะเบียนบ้าน (รับเป็น Base64)
   router.put('/employee/update-house-reg/:eid', async (req, res) => {

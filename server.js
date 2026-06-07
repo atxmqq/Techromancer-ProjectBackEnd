@@ -17,6 +17,12 @@ import employee from './api/employee.js';
 import storeInfoRouter from './api/storeinfo.js';
 import helpsection from './api/helpsection.js';
 
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const port = process.env.PORT || 3001;
 
@@ -38,7 +44,7 @@ app.use('/api', orderRoute(pool));
 app.use('/uploads', express.static('uploads'));
 app.use('/api', custompcRoute(pool));
 app.use('/api', employee(pool));
-app.use('/uploadsEmployeeProfile', express.static('uploadsEmployeeProfile'));
+app.use('/uploadsEmployeeProfile', express.static(path.join(__dirname, 'uploadsEmployeeProfile')));
 app.use('/api', storeInfoRouter(pool));
 app.use('/api', helpsection(pool));
 
