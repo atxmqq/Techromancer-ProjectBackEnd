@@ -15,19 +15,23 @@ export default function (pool) {
             async (err, results) => {
                 if (err) return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการตรวจสอบข้อมูล' });
 
-                // 2. ถ้าเจอข้อมูล แปลว่ามีอะไรสักอย่างซ้ำ
+                // 2. ถ้าเจอข้อมูล ให้เช็คทีละตัวแบบครอบคลุม (เปลี่ยนเป็นตัวเล็กทั้งหมดก่อนเทียบ)
                 if (results.length > 0) {
-                    const existingUser = results[0];
-                    
-                    if (existingUser.username === username) {
-                        return res.status(400).json({ error: 'ชื่อผู้ใช้นี้ (Username) ถูกใช้งานแล้ว' });
+                    let isUsernameExist = false;
+                    let isEmailExist = false;
+                    let isPhoneExist = false;
+
+                    // วนลูปเช็คทุกแถวที่หาเจอ ป้องกันกรณีที่เจอหลาย record
+                    for (let row of results) {
+                        if (row.username.toLowerCase() === username.toLowerCase()) isUsernameExist = true;
+                        if (row.email.toLowerCase() === email.toLowerCase()) isEmailExist = true;
+                        if (row.phone === phone) isPhoneExist = true;
                     }
-                    if (existingUser.email === email) {
-                        return res.status(400).json({ error: 'อีเมลนี้ถูกใช้งานแล้ว' });
-                    }
-                    if (existingUser.phone === phone) {
-                        return res.status(400).json({ error: 'หมายเลขโทรศัพท์นี้ถูกใช้งานแล้ว' });
-                    }
+
+                    // แจ้งเตือนตามสิ่งที่ซ้ำ (เรียงลำดับความสำคัญ)
+                    if (isUsernameExist) return res.status(400).json({ error: 'ชื่อผู้ใช้นี้ (Username) ถูกใช้งานแล้ว กรุณาใช้ชื่ออื่น' });
+                    if (isEmailExist) return res.status(400).json({ error: 'อีเมลนี้ถูกใช้งานแล้ว' });
+                    if (isPhoneExist) return res.status(400).json({ error: 'หมายเลขโทรศัพท์นี้ถูกใช้งานแล้ว' });
                 }
 
                 // 3. ถ้าไม่มีอะไรซ้ำเลย ให้ทำการแฮชรหัสผ่าน แล้วบันทึกข้อมูล
@@ -37,8 +41,10 @@ export default function (pool) {
                     'INSERT INTO User (username, fullname, email, password, phone) VALUES (?, ?, ?, ?, ?)',
                     [username, fullname, email, hashedPassword, phone],
                     (insertErr) => {
-                        if (insertErr) return res.status(500).json({ error: 'สมัครสมาชิกไม่สำเร็จ' });
-                        
+                        if (insertErr) {
+                            console.error('Insert Error:', insertErr);
+                            return res.status(500).json({ error: 'สมัครสมาชิกไม่สำเร็จ' });
+                        }
                         return res.status(200).json({ message: 'สมัครสมาชิกสำเร็จ!' });
                     }
                 );
@@ -47,7 +53,7 @@ export default function (pool) {
     } catch (error) {
         res.status(500).json({ error: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
     }
-});
+  });
 
   return router;
 }
