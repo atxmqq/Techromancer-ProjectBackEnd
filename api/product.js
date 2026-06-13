@@ -249,51 +249,54 @@ export default function (pool) {
     // --- API สำหรับเพิ่มสินค้าใหม่ (POST) ---
     router.post("/products", async (req, res) => {
         const db = pool.promise();
-
         const {
             name, details, price, price_before, amount,
             picture_one, picture_two, picture_three, picture_four, picture_five,
-            pc_id, pt_id,
-            specificDetails
+            pc_id, pt_id, specificDetails
         } = req.body;
 
         try {
-            // 👇 1. [เพิ่มใหม่] เช็คก่อนว่ามีชื่อสินค้านี้อยู่ในตาราง Product หรือยัง
+            // เช็คชื่อซ้ำ
             const [existingProduct] = await db.query('SELECT pid FROM Product WHERE name = ?', [name.trim()]);
-
             if (existingProduct.length > 0) {
-                // ถ้ามีชื่อซ้ำอยู่แล้ว ให้ดีดกลับทันทีโดยไม่บันทึกอะไร
                 return res.status(400).json({ error: "มีชื่อสินค้านี้ในระบบแล้ว กรุณาตั้งชื่ออื่น" });
             }
 
-            // 👇 2. ถ้าชื่อไม่ซ้ำ ค่อยเริ่มกระบวนการบันทึกข้อมูลตามปกติ
-            await db.query('BEGIN'); // เริ่มต้น Transaction
+            await db.query('BEGIN'); // เริ่ม Transaction
 
+            // Mapping: หมวดหมู่ไหน ไปลงตารางไหน และผูกกับคอลัมน์ไหนใน Product
+            const detailMapping = {
+                "1": { col: "cpu_details", table: "Product_Cpu_details" },
+                "2": { col: "ram_details", table: "Product_Ram_details" },
+                "3": { col: "mainboard_details", table: "Product_Mainboard_details" },
+                "4": { col: "storage_details", table: "Product_Storage_details" }, // HDD
+                "5": { col: "storage_details", table: "Product_Storage_details" }, // SSD
+                "6": { col: "power_details", table: "Product_Power_details" },
+                "7": { col: "case_details", table: "Product_Case_details" },
+                "8": { col: "comset_details", table: "Product_Comset_details" },
+                "9": { col: "vga_details", table: "Product_Vga_details" }
+            };
+
+            const mapping = detailMapping[String(pc_id)];
             let detailColumn = null;
             let detailId = null;
 
-            // 1. ตรวจสอบหมวดหมู่และบันทึกสเปกลงตารางย่อย (ตารางลูก) ก่อน
-            if (pc_id === "1") { // ถ้าเป็น ซีพียู
-                const [cpuResult] = await db.query(
-                    `INSERT INTO Product_Cpu_details 
-                    (Brand, Series, Processor_Number, Socket_Type, \`Cores/Threads\`, Base_Frequency, Max_Turbo_Frequency, Default_TDP, CPU_Cooler) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [
-                        specificDetails.Brand, specificDetails.Series, specificDetails.Processor_Number,
-                        specificDetails.Socket_Type, specificDetails.Cores_Threads, specificDetails.Base_Frequency,
-                        specificDetails.Max_Turbo_Frequency, specificDetails.Default_TDP, specificDetails.CPU_Cooler
-                    ]
+            // --- ขั้นตอนที่ 1: บันทึกข้อมูลสเปกย่อย (ถ้ามีการส่งมา) ---
+            if (mapping && specificDetails && Object.keys(specificDetails).length > 0) {
+                // ใส่ backtick (`) ครอบชื่อคอลัมน์ เผื่อมีชื่อแปลกๆ เช่น Cores/Threads
+                const keys = Object.keys(specificDetails).map(k => `\`${k}\``);
+                const values = Object.values(specificDetails);
+                const placeholders = keys.map(() => '?').join(', ');
+
+                const [detailResult] = await db.query(
+                    `INSERT INTO ${mapping.table} (${keys.join(', ')}) VALUES (${placeholders})`,
+                    values
                 );
-                detailId = cpuResult.insertId; // ดึง ID ที่เพิ่งสร้างมาเก็บไว้
-                detailColumn = "cpu_details";  // ระบุชื่อคอลัมน์ในตาราง Product
-            }
-            // *** สำหรับหมวดหมู่อื่นๆ (pc_id 2-9) สามารถเขียน else if เพิ่มเติมแพทเทิร์นเดียวกับด้านบนได้เลยครับ ***
-            else if (pc_id === "2") {
-                // INSERT INTO Product_Ram_details...
+                detailId = detailResult.insertId;
+                detailColumn = mapping.col;
             }
 
-            // 2. เตรียมคำสั่ง SQL สำหรับบันทึกลงตารางหลัก (Product)
-            // ถ้ามีการสร้างสเปกย่อย (detailColumn มีค่า) ให้ใส่ ID ลงในคอลัมน์นั้นด้วย
+            // --- ขั้นตอนที่ 2: บันทึกข้อมูลตารางหลัก (Product) ---
             let insertProductQuery = `
                 INSERT INTO Product 
                 (name, details, price, price_before, amount, picture_one, picture_two, picture_three, picture_four, picture_five, pc_id, pt_id
@@ -305,6 +308,7 @@ export default function (pool) {
             ];
             let valuePlaceholders = `?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?`;
 
+            // ถ้ามีการบันทึกสเปกย่อย ให้เอา ID มาผูกด้วย
             if (detailColumn && detailId) {
                 insertProductQuery += `, ${detailColumn}`;
                 valuePlaceholders += `, ?`;
@@ -313,19 +317,17 @@ export default function (pool) {
 
             insertProductQuery += `) VALUES (${valuePlaceholders})`;
 
-            // 3. บันทึกข้อมูลลงตารางแม่
             await db.query(insertProductQuery, queryValues);
-
-            await db.query('COMMIT'); // ยืนยันการบันทึกทั้งหมด
-            res.status(200).json({ message: "เพิ่มสินค้าใหม่สำเร็จเรียบร้อย!" });
+            await db.query('COMMIT'); 
+            
+            res.status(200).json({ message: "เพิ่มสินค้าและสเปกใหม่สำเร็จเรียบร้อย!" });
 
         } catch (error) {
-            await db.query('ROLLBACK'); // ถ้ายกเลิกหรือพังตรงไหน ให้ลบที่ทำมาออกให้หมด
+            await db.query('ROLLBACK');
             console.error("Error inserting product:", error);
             res.status(500).json({ error: "เกิดข้อผิดพลาดในการบันทึกข้อมูลสินค้า" });
         }
     });
-
 
 
     // --- API สำหรับแก้ไขข้อมูลสินค้า (PUT) ---
@@ -341,24 +343,6 @@ export default function (pool) {
         try {
             await db.query('BEGIN'); // เริ่ม Transaction
 
-            // 1. อัปเดตตารางหลัก Product
-            await db.query(
-                `UPDATE Product SET 
-                    name=?, details=?, price=?, price_before=?, amount=?, 
-                    picture_one=?, picture_two=?, picture_three=?, picture_four=?, picture_five=?, 
-                    pc_id=?, pt_id=? 
-                WHERE pid=?`,
-                [
-                    name, details, price, price_before || null, amount,
-                    picture_one, picture_two || null, picture_three || null, picture_four || null, picture_five || null,
-                    pc_id, pt_id || null, pid
-                ]
-            );
-
-            // 2. ดึงข้อมูลว่าสินค้านี้ผูกกับตารางสเปกย่อย ID อะไร
-            const [prodRows] = await db.query('SELECT * FROM Product WHERE pid = ?', [pid]);
-            const product = prodRows[0];
-
             const detailMapping = {
                 "1": { col: "cpu_details", table: "Product_Cpu_details", key: "cpu_id" },
                 "2": { col: "ram_details", table: "Product_Ram_details", key: "ram_id" },
@@ -371,23 +355,64 @@ export default function (pool) {
                 "9": { col: "vga_details", table: "Product_Vga_details", key: "vga_id" }
             };
 
-            const mapping = detailMapping[pc_id];
+            const mapping = detailMapping[String(pc_id)];
+            let detailColumn = mapping ? mapping.col : null;
+            let specificId = null;
 
-            // 3. อัปเดตตารางสเปกย่อยอัตโนมัติตามหมวดหมู่
+            // เช็คว่าสินค้าตัวนี้ เคยมีสเปกย่อยผูกไว้แล้วหรือยัง
+            const [prodRows] = await db.query('SELECT * FROM Product WHERE pid = ?', [pid]);
+            if (prodRows.length > 0 && detailColumn) {
+                specificId = prodRows[0][detailColumn];
+            }
+
+            // --- ขั้นตอนที่ 1: จัดการอัปเดตสเปกย่อย (หรือสร้างใหม่ถ้ายังไม่มี) ---
             if (mapping && specificDetails && Object.keys(specificDetails).length > 0) {
-                const specificId = product[mapping.col];
-                if (specificId) {
-                    const keys = Object.keys(specificDetails);
-                    const values = Object.values(specificDetails);
-                    const setClause = keys.map(k => `\`${k}\` = ?`).join(', ');
-                    values.push(specificId);
+                const keys = Object.keys(specificDetails).map(k => `\`${k}\``);
+                const values = Object.values(specificDetails);
 
+                if (specificId) {
+                    // ถ้ามี ID ผูกไว้อยู่แล้ว -> UPDATE ของเดิม
+                    const setClause = keys.map(k => `${k} = ?`).join(', ');
+                    values.push(specificId); // ID สำหรับ WHERE
                     await db.query(`UPDATE ${mapping.table} SET ${setClause} WHERE ${mapping.key} = ?`, values);
+                } else {
+                    // ถ้าอดีตลืมใส่สเปกย่อย (ID เป็น null) -> INSERT ใหม่ให้เลย
+                    const placeholders = keys.map(() => '?').join(', ');
+                    const [detailResult] = await db.query(
+                        `INSERT INTO ${mapping.table} (${keys.join(', ')}) VALUES (${placeholders})`,
+                        values
+                    );
+                    specificId = detailResult.insertId;
                 }
             }
 
+            // --- ขั้นตอนที่ 2: อัปเดตตารางหลัก Product ---
+            let updateProductSql = `
+                UPDATE Product SET 
+                    name=?, details=?, price=?, price_before=?, amount=?, 
+                    picture_one=?, picture_two=?, picture_three=?, picture_four=?, picture_five=?, 
+                    pc_id=?, pt_id=?
+            `;
+            let productValues = [
+                name, details, price, price_before || null, amount,
+                picture_one, picture_two || null, picture_three || null, picture_four || null, picture_five || null,
+                pc_id, pt_id || null
+            ];
+
+            // ถ้ารอบนี้เพิ่งสร้างสเปกย่อยใหม่ ให้อัปเดตเชื่อม ID คอลัมน์ด้วย
+            if (detailColumn && specificId) {
+                updateProductSql += `, ${detailColumn}=?`;
+                productValues.push(specificId);
+            }
+
+            updateProductSql += ` WHERE pid=?`;
+            productValues.push(pid);
+
+            await db.query(updateProductSql, productValues);
+
             await db.query('COMMIT');
             res.status(200).json({ message: "อัปเดตข้อมูลสินค้าสำเร็จ" });
+
         } catch (error) {
             await db.query('ROLLBACK');
             console.error("Error updating product:", error);
