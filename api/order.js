@@ -657,7 +657,28 @@ export default function (pool) {
       res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการบันทึกรีวิว" });
     }
   });
+  router.put("/order/refund/:id", async (req, res) => {
+  const orderId = req.params.id;
+  const { bank, account, name } = req.body;
+  const connection = await pool.promise().getConnection();
 
+  try {
+    // อัปเดตข้อมูลบัญชี และเปลี่ยน refund_status เป็น 'รอแอดมินโอนคืน'
+    const sql = `
+      UPDATE \`Order\` 
+      SET refund_bank = ?, refund_account = ?, refund_name = ?, refund_status = 'รอแอดมินโอนคืน' 
+      WHERE oid = ?
+    `;
+    await connection.query(sql, [bank, account, name, orderId]);
+    
+    res.json({ success: true, message: "บันทึกข้อมูลขอคืนเงินสำเร็จ" });
+  } catch (err) {
+    console.error("SQL Error (/order/refund):", err.sqlMessage);
+    res.status(500).json({ success: false, message: "ไม่สามารถบันทึกข้อมูลได้" });
+  } finally {
+    connection.release();
+  }
+});
 
 
 
