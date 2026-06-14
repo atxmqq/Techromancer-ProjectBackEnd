@@ -350,7 +350,6 @@ export default function (pool) {
     }
   });
 
-  // --- API สำหรับสั่งซื้อจากตะกร้า (เดิม) ---
   router.post("/order/add", async (req, res) => {
     const orders = req.body;
     const connection = await pool.promise().getConnection();
@@ -383,6 +382,16 @@ export default function (pool) {
 
       await connection.query(detailSql, [values]);
       await connection.query("DELETE FROM Cart WHERE uid = ?", [uid]);
+
+      // ⭐️ 3. วนลูปตัดสต๊อกสินค้า (หัก amount ตามจำนวนที่ซื้อ)
+      for (const item of orders) {
+        if (item.pid && item.amount) {
+          await connection.query(
+            "UPDATE Product SET amount = amount - ? WHERE pid = ?",
+            [item.amount, item.pid]
+          );
+        }
+      }
 
       await connection.commit();
       res.json({ success: true, order_id: orderId });
@@ -418,10 +427,19 @@ export default function (pool) {
       const orderId = orderResult.insertId;
 
       // บันทึก Order_details (pid เป็น NULL)
-      // เรียง: order_id, uid, pid, ctpid, amount, price, address, delivery_type, order_type
       const detailSql = `INSERT INTO Order_details (order_id, uid, pid, ctpid, amount, price, address, delivery_type, order_type) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?)`;
 
       await connection.query(detailSql, [orderId, uid, ctpid, 1, total_price, address_details, shipping_method, order_type]);
+
+      // ⭐️ หักสต๊อกชิ้นส่วนคอมพิวเตอร์แต่ละชิ้นที่ถูกเลือกจัดสเปค (ชิ้นละ 1 ชิ้น)
+      for (const item of items) {
+        if (item.pid) {
+          await connection.query(
+            "UPDATE Product SET amount = amount - 1 WHERE pid = ?",
+            [item.pid]
+          );
+        }
+      }
 
       await connection.commit();
       res.json({ success: true, order_id: orderId });
