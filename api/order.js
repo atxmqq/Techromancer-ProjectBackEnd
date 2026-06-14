@@ -679,7 +679,21 @@ export default function (pool) {
     connection.release();
   }
 });
+router.put("/order/refund-confirm/:id", async (req, res) => {
+  const orderId = req.params.id;
+  const connection = await pool.promise().getConnection();
 
+  try {
+    const sql = `UPDATE \`Order\` SET refund_status = 'โอนคืนสำเร็จ' WHERE oid = ?`;
+    await connection.query(sql, [orderId]);
+    res.json({ success: true, message: "อัปเดตสถานะการคืนเงินเป็น โอนคืนสำเร็จ แล้ว" });
+  } catch (err) {
+    console.error("SQL Error (/order/refund-confirm):", err.sqlMessage);
+    res.status(500).json({ success: false, error: "ไม่สามารถอัปเดตสถานะได้" });
+  } finally {
+    connection.release();
+  }
+});
 
 
   return router;
