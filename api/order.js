@@ -587,14 +587,31 @@ export default function (pool) {
     const connection = await pool.promise().getConnection();
 
     try {
-      // อัปเดตสถานะในตาราง Order
+      // 1. อัปเดตสถานะในตาราง Order เป็น 'ยกเลิก'
       const [result] = await connection.query(
         "UPDATE `Order` SET status = 'ยกเลิก' WHERE oid = ?",
         [orderId]
       );
 
       if (result.affectedRows > 0) {
-        res.json({ success: true, message: "ยกเลิกออเดอร์เรียบร้อยแล้ว" });
+        
+        // ⭐️ 2. ดึง UID ของลูกค้าเจ้าของออเดอร์นี้ เพื่อเตรียมส่งแจ้งเตือน
+        const [orderRows] = await connection.query('SELECT uid FROM `Order` WHERE oid = ?', [orderId]);
+        
+        if (orderRows.length > 0 && orderRows[0].uid) {
+          const customerUid = orderRows[0].uid;
+          
+          // ข้อความที่จะให้เด้งไปที่กระดิ่งแจ้งเตือน
+          const message = `ออเดอร์ของคุณถูกยกเลิก ❌ หากมีข้อสงสัยเพิ่มเติมสามารถติดต่อสอบถามแอดมินได้เลยครับ`;
+          
+          // ⭐️ 3. สั่งบันทึกข้อความลงตาราง Notification
+          await connection.query(
+            'INSERT INTO Notification (uid, message) VALUES (?, ?)', 
+            [customerUid, message]
+          );
+        }
+
+        res.json({ success: true, message: "ยกเลิกออเดอร์เรียบร้อยและส่งแจ้งเตือนแล้ว" });
       } else {
         res.status(404).json({ success: false, message: "ไม่พบรายการสั่งซื้อ" });
       }
@@ -658,42 +675,58 @@ export default function (pool) {
     }
   });
   router.put("/order/refund/:id", async (req, res) => {
-  const orderId = req.params.id;
-  const { bank, account, name } = req.body;
-  const connection = await pool.promise().getConnection();
+    const orderId = req.params.id;
+    const { bank, account, name } = req.body;
+    const connection = await pool.promise().getConnection();
 
-  try {
-    // อัปเดตข้อมูลบัญชี และเปลี่ยน refund_status เป็น 'รอแอดมินโอนคืน'
-    const sql = `
-      UPDATE \`Order\` 
-      SET refund_bank = ?, refund_account = ?, refund_name = ?, refund_status = 'รอแอดมินโอนคืน' 
-      WHERE oid = ?
-    `;
-    await connection.query(sql, [bank, account, name, orderId]);
-    
-    res.json({ success: true, message: "บันทึกข้อมูลขอคืนเงินสำเร็จ" });
-  } catch (err) {
-    console.error("SQL Error (/order/refund):", err.sqlMessage);
-    res.status(500).json({ success: false, message: "ไม่สามารถบันทึกข้อมูลได้" });
-  } finally {
-    connection.release();
-  }
-});
+    try {
+      const sql = `
+        UPDATE \`Order\` 
+        SET refund_bank = ?, refund_account = ?, refund_name = ?, refund_status = 'รอแอดมินโอนคืน' 
+        WHERE oid = ?
+      `;
+      await connection.query(sql, [bank, account, name, orderId]);
+
+      // 🔔 ดึง UID เพื่อส่งการแจ้งเตือนให้ลูกค้า
+      const [orderRows] = await connection.query('SELECT uid FROM `Order` WHERE oid = ?', [orderId]);
+      if (orderRows.length > 0 && orderRows[0].uid) {
+        const customerUid = orderRows[0].uid;
+        const message = `ออเดอร์ #${orderId} แจ้งขอคืนเงินสำเร็จ ระบบกำลังรอแอดมินตรวจสอบและโอนเงินคืนครับ 💸`;
+        await connection.query('INSERT INTO Notification (uid, message) VALUES (?, ?)', [customerUid, message]);
+      }
+      
+      res.json({ success: true, message: "บันทึกข้อมูลขอคืนเงินสำเร็จ" });
+    } catch (err) {
+      console.error("SQL Error (/order/refund):", err.sqlMessage);
+      res.status(500).json({ success: false, message: "ไม่สามารถบันทึกข้อมูลได้" });
+    } finally {
+      connection.release();
+    }
+  });
 router.put("/order/refund-confirm/:id", async (req, res) => {
-  const orderId = req.params.id;
-  const connection = await pool.promise().getConnection();
+    const orderId = req.params.id;
+    const connection = await pool.promise().getConnection();
 
-  try {
-    const sql = `UPDATE \`Order\` SET refund_status = 'โอนคืนสำเร็จ' WHERE oid = ?`;
-    await connection.query(sql, [orderId]);
-    res.json({ success: true, message: "อัปเดตสถานะการคืนเงินเป็น โอนคืนสำเร็จ แล้ว" });
-  } catch (err) {
-    console.error("SQL Error (/order/refund-confirm):", err.sqlMessage);
-    res.status(500).json({ success: false, error: "ไม่สามารถอัปเดตสถานะได้" });
-  } finally {
-    connection.release();
-  }
-});
+    try {
+      const sql = `UPDATE \`Order\` SET refund_status = 'โอนคืนสำเร็จ' WHERE oid = ?`;
+      await connection.query(sql, [orderId]);
+
+      // 🔔 ดึง UID เพื่อส่งการแจ้งเตือนให้ลูกค้า
+      const [orderRows] = await connection.query('SELECT uid FROM `Order` WHERE oid = ?', [orderId]);
+      if (orderRows.length > 0 && orderRows[0].uid) {
+        const customerUid = orderRows[0].uid;
+        const message = `ออเดอร์ #${orderId} ของคุณได้รับการโอนเงินคืนสำเร็จแล้ว! ตรวจสอบยอดเงินในบัญชีของคุณได้เลยครับ 💳✨`;
+        await connection.query('INSERT INTO Notification (uid, message) VALUES (?, ?)', [customerUid, message]);
+      }
+
+      res.json({ success: true, message: "อัปเดตสถานะการคืนเงินเป็น โอนคืนสำเร็จ แล้ว" });
+    } catch (err) {
+      console.error("SQL Error (/order/refund-confirm):", err.sqlMessage);
+      res.status(500).json({ success: false, error: "ไม่สามารถอัปเดตสถานะได้" });
+    } finally {
+      connection.release();
+    }
+  });
 
 
   return router;
