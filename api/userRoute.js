@@ -132,6 +132,35 @@ export default function (pool) {
             }
         );
     });
+    // 1. ดึงข้อความแจ้งเตือนของสมาชิก
+router.get('/notifications/:uid', async (req, res) => {
+    const { uid } = req.params;
+    try {
+        const [rows] = await pool.promise().query(
+            'SELECT * FROM Notification WHERE uid = ? ORDER BY created_at DESC LIMIT 30',
+            [uid]
+        );
+        res.json(rows);
+    } catch (err) {
+        console.error("Error fetching notifications:", err);
+        res.status(500).json({ error: 'ไม่สามารถดึงข้อมูลแจ้งเตือนได้' });
+    }
+});
+
+// 2. อัปเดตสถานะว่า "อ่านแล้ว" ทั้งหมด เมื่อกดเปิดกระดิ่ง
+router.put('/notifications/read/:uid', async (req, res) => {
+    const { uid } = req.params;
+    try {
+        await pool.promise().query(
+            'UPDATE Notification SET is_read = TRUE WHERE uid = ? AND is_read = FALSE',
+            [uid]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error("Error updating notifications:", err);
+        res.status(500).json({ error: 'ไม่สามารถอัปเดตสถานะได้' });
+    }
+});
 
     return router;
 

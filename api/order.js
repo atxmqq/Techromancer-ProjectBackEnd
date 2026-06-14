@@ -174,45 +174,102 @@ export default function (pool) {
   });
 
 
-  router.put('/order/update/:oid', (req, res) => {
+  // ========================================================
+  // API: อัปเดตสถานะออเดอร์ + เพิ่มเลขพัสดุ + ส่งแจ้งเตือน
+  // ========================================================
+  // ========================================================
+  // API: อัปเดตสถานะออเดอร์ + เพิ่มเลขพัสดุ + ส่งแจ้งเตือน (แบบมี Switch Case)
+  // ========================================================
+  router.put('/order/update/:oid', async (req, res) => {
     const { oid } = req.params;
-    const { status, tracking_number, eid, did } = req.body; // รับค่า did เพิ่ม
+    const { status, tracking_number, eid, did } = req.body; 
 
     if (!status || !eid) {
       return res.status(400).json({ error: 'ข้อมูลไม่ครบถ้วน (ต้องการ status และ eid)' });
     }
 
-    // สร้าง SQL อิงตามว่ามีการส่ง did มาด้วยหรือไม่
-    let sqlQuery;
-    let queryParams;
+    try {
+      // 1. อัปเดตสถานะออเดอร์
+      let sqlQuery;
+      let queryParams;
 
-    if (did !== undefined) {
-      // ถ้ามี did ส่งมาด้วย (ตอนกดเพิ่มเลขพัสดุ) ให้บันทึก did ลงไป
-      sqlQuery = `UPDATE \`Order\` SET status = ?, tracking_number = ?, did = ?, eid = ? WHERE oid = ?`;
-      queryParams = [status, tracking_number || null, did, eid, oid];
-    } else {
-      // ถ้าไม่มี did (ตอนกดเปลี่ยนแค่สถานะ) ให้ข้ามการอัปเดต did
-      sqlQuery = `UPDATE \`Order\` SET status = ?, tracking_number = ?, eid = ? WHERE oid = ?`;
-      queryParams = [status, tracking_number || null, eid, oid];
-    }
-
-    pool.query(sqlQuery, queryParams, (err, results) => {
-      if (err) {
-        console.error('Error updating order:', err);
-        return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการอัปเดตออเดอร์' });
+      if (did !== undefined) {
+        sqlQuery = `UPDATE \`Order\` SET status = ?, tracking_number = ?, did = ?, eid = ? WHERE oid = ?`;
+        queryParams = [status, tracking_number || null, did, eid, oid];
+      } else {
+        sqlQuery = `UPDATE \`Order\` SET status = ?, tracking_number = ?, eid = ? WHERE oid = ?`;
+        queryParams = [status, tracking_number || null, eid, oid];
       }
 
-      if (results.affectedRows === 0) {
+      const [updateResult] = await pool.promise().query(sqlQuery, queryParams);
+
+      if (updateResult.affectedRows === 0) {
         return res.status(404).json({ error: 'ไม่พบออเดอร์รหัสนี้ในระบบ' });
       }
 
-      res.json({ message: 'อัปเดตสถานะออเดอร์และบันทึกข้อมูลพนักงานสำเร็จ!' });
-    });
+      // ⭐️ 2. ดึง UID ของลูกค้าเจ้าของออเดอร์นี้
+      const [orderRows] = await pool.promise().query('SELECT uid FROM `Order` WHERE oid = ?', [oid]);
+      
+      // ⭐️ 3. เพิ่มข้อความแจ้งเตือนลงตาราง Notification
+      if (orderRows.length > 0 && orderRows[0].uid) {
+        const customerUid = orderRows[0].uid;
+        
+        // --- แต่งข้อความให้เข้ากับสถานะทั้ง 10 แบบ ---
+        let message = `ออเดอร์ #${oid} อัปเดตสถานะเป็น: ${status}`; // ข้อความกันเหนียว
+
+        switch (status) {
+          case 'รอตรวจสอบการชำระเงิน':
+            message = `ออเดอร์ #${oid} ได้รับแล้ว ระบบกำลังรอตรวจสอบการชำระเงินครับ`;
+            break;
+          case 'สลิปไม่ถูกต้อง':
+            message = `ออเดอร์ #${oid} สลิปไม่ถูกต้อง ⚠️ กรุณาตรวจสอบและอัปโหลดหลักฐานการโอนเงินใหม่ครับ`;
+            break;
+          case 'จัดเตรียมสินค้า':
+            message = `ออเดอร์ #${oid} กำลังจัดเตรียมสินค้าเพื่อรอการจัดส่งครับ 📦`;
+            break;
+          case 'อยู่ระหว่างประกอบคอมพิวเตอร์':
+            message = `ออเดอร์ #${oid} ช่างกำลังดำเนินการประกอบคอมพิวเตอร์ให้คุณอยู่ครับ ⚙️`;
+            break;
+          case 'ประกอบคอมพิวเตอร์สำเร็จ':
+            message = `ออเดอร์ #${oid} ประกอบและทดสอบระบบเสร็จสมบูรณ์แล้วครับ! 💻✨`;
+            break;
+          case 'อยู่ระหว่างจัดส่ง':
+            message = `ออเดอร์ #${oid} อยู่ระหว่างการจัดส่ง 🚚 ${tracking_number ? `(เลขพัสดุ: ${tracking_number})` : ''}`;
+            break;
+          case 'จัดส่งสำเร็จ':
+            message = `ออเดอร์ #${oid} จัดส่งสำเร็จแล้ว! หวังว่าคุณจะถูกใจกับสินค้านะครับ 🎉`;
+            break;
+          case 'รอรับที่ร้าน':
+            message = `ออเดอร์ #${oid} สินค้าพร้อมแล้ว! คุณสามารถเข้ามารับสินค้าที่ร้านได้เลยครับ 🏪`;
+            break;
+          case 'ลูกค้าเข้ามารับเรียบร้อย':
+            message = `ออเดอร์ #${oid} คุณได้เข้ามารับสินค้าที่ร้านเรียบร้อยแล้ว ขอบคุณที่ใช้บริการครับ 🙏`;
+            break;
+          case 'ยกเลิก':
+            message = `ออเดอร์ #${oid} ถูกยกเลิก ❌ หากมีข้อสงสัยเพิ่มเติมสามารถติดต่อสอบถามแอดมินได้เลยครับ`;
+            break;
+        }
+
+        // สั่งบันทึกลงตาราง Notification
+        await pool.promise().query(
+          'INSERT INTO Notification (uid, message) VALUES (?, ?)', 
+          [customerUid, message]
+        );
+      }
+
+      res.json({ message: 'อัปเดตสถานะออเดอร์และส่งการแจ้งเตือนให้ลูกค้าสำเร็จ!' });
+
+    } catch (err) {
+      console.error('Error updating order:', err);
+      res.status(500).json({ error: 'เกิดข้อผิดพลาดในการอัปเดตออเดอร์' });
+    }
   });
 
-
   // API สำหรับอัปเดตวันรับสินค้า (รับที่ร้าน)
-  router.put('/order/update-date/:oid', (req, res) => {
+  // ========================================================
+  // API: อัปเดตวันรับสินค้าที่ร้าน + ส่งแจ้งเตือน
+  // ========================================================
+  router.put('/order/update-date/:oid', async (req, res) => {
     const { oid } = req.params;
     const { date_received, eid } = req.body;
 
@@ -220,21 +277,40 @@ export default function (pool) {
       return res.status(400).json({ error: 'กรุณาส่งวันที่รับสินค้าและข้อมูลพนักงาน' });
     }
 
-    // อัปเดตคอลัมน์ date_received ลงในตาราง Order
-    const sqlQuery = `UPDATE \`Order\` SET date_received = ?, eid = ? WHERE oid = ?`;
+    try {
+      // 1. อัปเดตวันที่รับสินค้า
+      const sqlQuery = `UPDATE \`Order\` SET date_received = ?, eid = ? WHERE oid = ?`;
+      const [updateResult] = await pool.promise().query(sqlQuery, [date_received, eid, oid]);
 
-    pool.query(sqlQuery, [date_received, eid, oid], (err, results) => {
-      if (err) {
-        console.error('Error updating receive date:', err);
-        return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการบันทึกวันรับสินค้า' });
-      }
-
-      if (results.affectedRows === 0) {
+      if (updateResult.affectedRows === 0) {
         return res.status(404).json({ error: 'ไม่พบออเดอร์รหัสนี้ในระบบ' });
       }
 
-      res.json({ message: 'บันทึกวันรับสินค้าสำเร็จ!' });
-    });
+      // ⭐️ 2. ดึง UID ของลูกค้า
+      const [orderRows] = await pool.promise().query('SELECT uid FROM `Order` WHERE oid = ?', [oid]);
+      
+      // ⭐️ 3. เพิ่มข้อความแจ้งเตือนลงตาราง Notification
+      if (orderRows.length > 0 && orderRows[0].uid) {
+        const customerUid = orderRows[0].uid;
+        
+        // แปลงรูปแบบวันที่ให้อ่านง่ายขึ้น (เช่น 25/12/2026)
+        const dateObj = new Date(date_received);
+        const formattedDate = dateObj.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+        
+        const message = `ออเดอร์ OID: ${oid} ของคุณพร้อมแล้ว! สามารถเข้ามารับที่ร้านได้ในวันที่ ${formattedDate}`;
+
+        await pool.promise().query(
+          'INSERT INTO Notification (uid, message) VALUES (?, ?)', 
+          [customerUid, message]
+        );
+      }
+
+      res.json({ message: 'บันทึกวันรับสินค้าและส่งแจ้งเตือนสำเร็จ!' });
+
+    } catch (err) {
+      console.error('Error updating receive date:', err);
+      res.status(500).json({ error: 'เกิดข้อผิดพลาดในการบันทึกวันรับสินค้า' });
+    }
   });
 
 
