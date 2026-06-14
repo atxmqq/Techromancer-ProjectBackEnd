@@ -368,7 +368,22 @@ export default function (pool) {
       const total_price = productTotal + shippingFee;
 
       await connection.beginTransaction();
-
+      for (const item of orders) {
+        if (item.pid && item.amount) {
+          const [checkStock] = await connection.query("SELECT name, amount FROM Product WHERE pid = ?", [item.pid]);
+          
+          if (checkStock.length === 0) {
+            throw new Error(`ไม่พบสินค้า (รหัส: ${item.pid}) ในระบบ`);
+          }
+          
+          const currentStock = checkStock[0].amount;
+          
+          // ถ้าจำนวนที่สั่ง > สต๊อกที่มี ให้สั่งยกเลิก (throw Error) ทันที!
+          if (item.amount > currentStock) {
+            throw new Error(`ขออภัย สินค้า "${checkStock[0].name}" มีสต๊อกไม่เพียงพอ (เหลือเพียง ${currentStock} ชิ้น)`);
+          }
+        }
+      }
       // 1. บันทึก Order
       const [userRows] = await connection.query("SELECT username FROM User WHERE uid = ?", [uid]);
       const username = userRows.length > 0 ? userRows[0].username : null;
@@ -398,7 +413,7 @@ export default function (pool) {
     } catch (err) {
       await connection.rollback();
       console.error("SQL Error (/order/add):", err.sqlMessage);
-      res.status(500).json({ success: false, message: err.sqlMessage });
+      res.status(400).json({ success: false, message: err.message || err.sqlMessage });
     } finally {
       connection.release();
     }
