@@ -87,6 +87,7 @@ export default function (pool) {
     });
 
 
+    // ⭐️ 1. แก้ไขระบบค้นหาให้ไม่สนใจการเว้นวรรคและสัญลักษณ์
     router.get('/products/search', (req, res) => {
         const { q } = req.query;
 
@@ -94,7 +95,9 @@ export default function (pool) {
             return res.status(400).json({ error: 'กรุณาระบุคำค้นหา (q)' });
         }
 
-        const searchTerm = `%${q}%`;
+        // แปลงข้อความค้นหา: เอาช่องว่างและสัญลักษณ์ออกให้หมด
+        const cleanQuery = q.toLowerCase().replace(/[^a-z0-9ก-๙]/g, "");
+        const searchTerm = `%${cleanQuery}%`;
 
         pool.query(
             `SELECT 
@@ -109,7 +112,10 @@ export default function (pool) {
             FROM Product p
             JOIN Product_Categories pc ON p.pc_id = pc.pc_id
             JOIN Product_Type pt ON p.pt_id = pt.pt_id
-            WHERE p.name LIKE ? OR p.details LIKE ?`,
+            WHERE 
+                LOWER(REPLACE(REPLACE(REPLACE(p.name, ' ', ''), '-', ''), '_', '')) LIKE ? 
+                OR 
+                LOWER(REPLACE(REPLACE(REPLACE(p.details, ' ', ''), '-', ''), '_', '')) LIKE ?`,
             [searchTerm, searchTerm],
             (err, results) => {
                 if (err) {
@@ -219,6 +225,7 @@ export default function (pool) {
             res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
         }
     });
+
     // --- ระบบกดถูกใจ (Like) ---
     router.post('/like', (req, res) => {
         const { uid, pid } = req.body;
@@ -250,6 +257,7 @@ export default function (pool) {
             });
         });
     });
+
     // 1. ตรวจสอบว่า User ไลค์สินค้าตัวนี้หรือยัง (สำหรับตอนโหลดหน้า)
     router.get('/like/check/:uid/:pid', (req, res) => {
         const { uid, pid } = req.params;
@@ -267,6 +275,7 @@ export default function (pool) {
             res.status(200).json({ message: "ยกเลิกถูกใจสำเร็จ" });
         });
     });
+
     router.get('/likes/:uid', (req, res) => {
         const { uid } = req.params;
         const sql = `
@@ -281,7 +290,7 @@ export default function (pool) {
         });
     });
 
-
+    // --- API เพิ่มสินค้าใหม่ (POST) ---
     router.post("/products", async (req, res) => {
         const db = pool.promise();
         const {
@@ -291,21 +300,25 @@ export default function (pool) {
         } = req.body;
 
         try {
-            // เช็คชื่อซ้ำ
-            const [existingProduct] = await db.query('SELECT pid FROM Product WHERE name = ?', [name.trim()]);
+            // ⭐️ 2. เช็คชื่อซ้ำแบบตัดช่องว่างและตัวอักษรพิเศษ
+            const cleanInputName = name.toLowerCase().replace(/[^a-z0-9ก-๙]/g, "");
+            const [existingProduct] = await db.query(
+                `SELECT pid FROM Product WHERE LOWER(REPLACE(REPLACE(REPLACE(name, ' ', ''), '-', ''), '_', '')) = ?`, 
+                [cleanInputName]
+            );
+
             if (existingProduct.length > 0) {
-                return res.status(400).json({ error: "มีชื่อสินค้านี้ในระบบแล้ว กรุณาตั้งชื่ออื่น" });
+                return res.status(400).json({ error: "มีชื่อสินค้านี้ในระบบแล้ว (อาจมีการเว้นวรรคต่างกัน) กรุณาตรวจสอบ" });
             }
 
             await db.query('BEGIN'); // เริ่ม Transaction
 
-            // Mapping: หมวดหมู่ไหน ไปลงตารางไหน และผูกกับคอลัมน์ไหนใน Product
             const detailMapping = {
                 "1": { col: "cpu_details", table: "Product_Cpu_details" },
                 "2": { col: "ram_details", table: "Product_Ram_details" },
                 "3": { col: "mainboard_details", table: "Product_Mainboard_details" },
-                "4": { col: "storage_details", table: "Product_Storage_details" }, // HDD
-                "5": { col: "storage_details", table: "Product_Storage_details" }, // SSD
+                "4": { col: "storage_details", table: "Product_Storage_details" },
+                "5": { col: "storage_details", table: "Product_Storage_details" },
                 "6": { col: "power_details", table: "Product_Power_details" },
                 "7": { col: "case_details", table: "Product_Case_details" },
                 "8": { col: "comset_details", table: "Product_Comset_details" },
@@ -318,9 +331,10 @@ export default function (pool) {
 
             // --- ขั้นตอนที่ 1: บันทึกข้อมูลสเปกย่อย (ถ้ามีการส่งมา) ---
             if (mapping && specificDetails && Object.keys(specificDetails).length > 0) {
-                // ใส่ backtick (`) ครอบชื่อคอลัมน์ เผื่อมีชื่อแปลกๆ เช่น Cores/Threads
                 const keys = Object.keys(specificDetails).map(k => `\`${k}\``);
-                const values = Object.values(specificDetails);
+                
+                // ⭐️ 3. ป้องกันบั๊ก 500: เปลี่ยน String ว่าง ("") ให้กลายเป็น null เพื่อไม่ให้ Database ทะเลาะกับคอลัมน์ที่เป็นตัวเลข
+                const values = Object.values(specificDetails).map(v => v === "" ? null : v);
                 const placeholders = keys.map(() => '?').join(', ');
 
                 const [detailResult] = await db.query(
@@ -343,7 +357,6 @@ export default function (pool) {
             ];
             let valuePlaceholders = `?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?`;
 
-            // ถ้ามีการบันทึกสเปกย่อย ให้เอา ID มาผูกด้วย
             if (detailColumn && detailId) {
                 insertProductQuery += `, ${detailColumn}`;
                 valuePlaceholders += `, ?`;
@@ -360,10 +373,9 @@ export default function (pool) {
         } catch (error) {
             await db.query('ROLLBACK');
             console.error("Error inserting product:", error);
-            res.status(500).json({ error: "เกิดข้อผิดพลาดในการบันทึกข้อมูลสินค้า" });
+            res.status(500).json({ error: "เกิดข้อผิดพลาดในการบันทึกข้อมูลสินค้า (คอลัมน์ใน Database อาจจะไม่ครบ)" });
         }
     });
-
 
     // --- API สำหรับแก้ไขข้อมูลสินค้า ---
     router.put("/products/:pid", async (req, res) => {
@@ -394,7 +406,6 @@ export default function (pool) {
             let detailColumn = mapping ? mapping.col : null;
             let specificId = null;
 
-            // เช็คว่าสินค้าตัวนี้ เคยมีสเปกย่อยผูกไว้แล้วหรือยัง
             const [prodRows] = await db.query('SELECT * FROM Product WHERE pid = ?', [pid]);
             if (prodRows.length > 0 && detailColumn) {
                 specificId = prodRows[0][detailColumn];
@@ -403,15 +414,15 @@ export default function (pool) {
             // --- ขั้นตอนที่ 1: จัดการอัปเดตสเปกย่อย (หรือสร้างใหม่ถ้ายังไม่มี) ---
             if (mapping && specificDetails && Object.keys(specificDetails).length > 0) {
                 const keys = Object.keys(specificDetails).map(k => `\`${k}\``);
-                const values = Object.values(specificDetails);
+                
+                // ⭐️ 3. ป้องกันบั๊ก 500: เปลี่ยน String ว่าง ("") ให้กลายเป็น null
+                const values = Object.values(specificDetails).map(v => v === "" ? null : v);
 
                 if (specificId) {
-                    // ถ้ามี ID ผูกไว้อยู่แล้ว -> UPDATE ของเดิม
                     const setClause = keys.map(k => `${k} = ?`).join(', ');
-                    values.push(specificId); // ID สำหรับ WHERE
+                    values.push(specificId); 
                     await db.query(`UPDATE ${mapping.table} SET ${setClause} WHERE ${mapping.key} = ?`, values);
                 } else {
-                    // ถ้าอดีตลืมใส่สเปกย่อย (ID เป็น null) -> INSERT ใหม่ให้เลย
                     const placeholders = keys.map(() => '?').join(', ');
                     const [detailResult] = await db.query(
                         `INSERT INTO ${mapping.table} (${keys.join(', ')}) VALUES (${placeholders})`,
@@ -434,7 +445,6 @@ export default function (pool) {
                 pc_id, pt_id || null
             ];
 
-            // ถ้ารอบนี้เพิ่งสร้างสเปกย่อยใหม่ ให้อัปเดตเชื่อม ID คอลัมน์ด้วย
             if (detailColumn && specificId) {
                 updateProductSql += `, ${detailColumn}=?`;
                 productValues.push(specificId);
@@ -454,8 +464,6 @@ export default function (pool) {
             res.status(500).json({ error: "เกิดข้อผิดพลาดในการอัปเดตข้อมูลสินค้า" });
         }
     });
-
-
 
     // --- API สำหรับลบสินค้า ---
     router.delete("/products/:pid", async (req, res) => {
@@ -508,7 +516,6 @@ export default function (pool) {
             res.status(500).json({ error: "เกิดข้อผิดพลาดในการอัปเดตข้อมูล" });
         }
     });
-
 
     return router;
 }
