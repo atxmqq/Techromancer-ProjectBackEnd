@@ -11,11 +11,16 @@ export default function (pool) {
         p.pid, 
         p.pc_id, 
         p.name, 
-        p.price,          /* 👈 เพิ่มบรรทัดนี้ */
-        p.amount,         /* 👈 เพิ่มบรรทัดนี้ */
-        p.details,        /* 👈 เพิ่มบรรทัดนี้ */
+        p.price,          
+        p.amount,         
+        p.details,        
         p.price_before, 
         p.picture_one,
+
+        cpu.Brand AS cpu_brand,
+        cpu.Series AS cpu_series,
+        cpu.CPU_Model AS cpu_processor, 
+        cpu.Socket_Type AS cpu_socket,
         
         -- 1. เช็ค CPU ↔ เมนบอร์ด (จับคู่ Socket)
         COALESCE(cpu.Socket_Type, mb.CPU_Socket) AS socket_type,
@@ -318,8 +323,8 @@ export default function (pool) {
             insertProductQuery += `) VALUES (${valuePlaceholders})`;
 
             await db.query(insertProductQuery, queryValues);
-            await db.query('COMMIT'); 
-            
+            await db.query('COMMIT');
+
             res.status(200).json({ message: "เพิ่มสินค้าและสเปกใหม่สำเร็จเรียบร้อย!" });
 
         } catch (error) {
@@ -420,7 +425,7 @@ export default function (pool) {
         }
     });
 
-    
+
 
     // --- API สำหรับลบสินค้า (DELETE) ---
     router.delete("/products/:pid", async (req, res) => {
