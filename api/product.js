@@ -88,13 +88,13 @@ export default function (pool) {
 
 
     router.get('/products/search', (req, res) => {
-        const { q } = req.query; 
+        const { q } = req.query;
 
         if (!q) {
             return res.status(400).json({ error: 'กรุณาระบุคำค้นหา (q)' });
         }
 
-        const searchTerm = `%${q}%`; 
+        const searchTerm = `%${q}%`;
 
         pool.query(
             `SELECT 
@@ -110,7 +110,7 @@ export default function (pool) {
             JOIN Product_Categories pc ON p.pc_id = pc.pc_id
             JOIN Product_Type pt ON p.pt_id = pt.pt_id
             WHERE p.name LIKE ? OR p.details LIKE ?`,
-            [searchTerm, searchTerm], 
+            [searchTerm, searchTerm],
             (err, results) => {
                 if (err) {
                     console.error('Error searching products:', err);
@@ -165,8 +165,8 @@ export default function (pool) {
           pc.name AS category_name,
           pt.name AS type_name
         FROM Product p
-        JOIN Product_Categories pc ON p.pc_id = pc.pc_id
-        JOIN Product_Type pt ON p.pt_id = pt.pt_id
+        LEFT JOIN Product_Categories pc ON p.pc_id = pc.pc_id
+        LEFT JOIN Product_Type pt ON p.pt_id = pt.pt_id
         WHERE p.pid = ?`,
                 [pid]
             );
