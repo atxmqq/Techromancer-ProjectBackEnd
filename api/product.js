@@ -33,6 +33,15 @@ export default function (pool) {
         ram.Memory_Capacity AS ram_capacity,
         ram.Speed AS ram_speed,
         ram.Memory_Type AS ram_type,
+
+        mb.Brands AS mb_brand,
+        mb.CPU_Support AS mb_cpu_support,
+        mb.CPU_Socket AS mb_cpu_socket,
+        mb.Chipset AS mb_chipset,
+        mb.Memory_Slots AS mb_memory_slots,
+        mb.Memory_Type AS mb_memory_type,
+        mb.Max_Memory AS mb_max_memory,
+        mb.Form_Factor AS mb_form_factor,
         
         -- 1. เช็ค CPU ↔ เมนบอร์ด (จับคู่ Socket)
         COALESCE(cpu.Socket_Type, mb.CPU_Socket) AS socket_type,
