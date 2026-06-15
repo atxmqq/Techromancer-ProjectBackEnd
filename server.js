@@ -49,7 +49,7 @@ app.use('/api', storeInfoRouter(pool));
 app.use('/api', helpsection(pool));
 
 
-cron.schedule('0 0 * * *', async () => {
+cron.schedule('* * * * *', async () => {
   console.log('⏰ [Cron Job] เริ่มตรวจสอบออเดอร์ที่จัดส่งเกิน 7 วัน...');
   
   try {
