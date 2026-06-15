@@ -34,7 +34,6 @@ export default function (pool) {
                 console.error('Error finding custom pc details:', err);
                 return res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
             }
-            // ส่งผลลัพธ์กลับไปยัง client
             res.json(results);
         });
     });

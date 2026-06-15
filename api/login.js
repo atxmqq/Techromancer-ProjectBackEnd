@@ -73,14 +73,14 @@ export default function (pool) {
 
         const employee = results[0];
 
-        // ⭐️ ดักจับสถานะพนักงานที่โดนไล่ออก (Terminated) ไม่ให้เข้าหลังบ้านได้
+        // ดักจับสถานะพนักงานที่โดนไล่ออก (Terminated) ไม่ให้เข้าหลังบ้านได้
         if (employee.status === 'Terminated') {
           return res.status(403).json({ error: 'บัญชีนี้ถูกยกเลิกการใช้งานแล้ว ไม่สามารถเข้าสู่ระบบได้' });
         }
 
         let passwordMatch = false;
 
-        // 👇 เช็คประเภทพนักงาน ถ้าเป็น Admin ให้เทียบรหัสผ่านตรงๆ ถ้าไม่ใช่ให้เทียบด้วย bcrypt
+        // เช็คประเภทพนักงาน ถ้าเป็น Admin ให้เทียบรหัสผ่านตรงๆ ถ้าไม่ใช่ให้เทียบด้วย bcrypt
         if (employee.type === 'Admin') {
           passwordMatch = (password === employee.password); 
         } else {

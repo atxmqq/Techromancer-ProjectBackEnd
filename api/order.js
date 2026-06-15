@@ -17,7 +17,7 @@ export default function (pool) {
     const sqlQuery = `
       SELECT o.*, u.fullname, e.username AS updater_name, m.bank_name, d.name AS delivery_name,
         od.od_id, od.pid, p.name AS product_name, 
-        p.picture_one, /* 👈 เพิ่มดึงรูปตรงนี้ */
+        p.picture_one,
         od.amount, od.price, od.delivery_type, od.order_type, od.ctpid,
         c.Cpu, c.Mainboard, c.Vga, c.Ram, c.HDD, c.SSD, c.Power, c.Cases,
         p_cpu.name AS cpu_name, p_mb.name AS mainboard_name, p_vga.name AS vga_name,
@@ -49,7 +49,7 @@ export default function (pool) {
         if (!ordersMap.has(row.oid)) {
           const orderData = { ...row, order_details: [] };
           const keysToDelete = [
-            'od_id', 'pid', 'product_name', 'picture_one', 'amount', 'price', 'delivery_type', 'order_type', 'ctpid', // 👈 เพิ่ม picture_one
+            'od_id', 'pid', 'product_name', 'picture_one', 'amount', 'price', 'delivery_type', 'order_type', 'ctpid', 
             'Cpu', 'Mainboard', 'Vga', 'Ram', 'HDD', 'SSD', 'Power', 'Cases',
             'cpu_name', 'mainboard_name', 'vga_name', 'ram_name', 'hdd_name', 'ssd_name', 'power_name', 'cases_name'
           ];
@@ -60,7 +60,7 @@ export default function (pool) {
         if (row.od_id) {
           let itemData = {
             od_id: row.od_id, pid: row.pid, product_name: row.product_name,
-            picture_one: row.picture_one, // 👈 เก็บรูปลง Object
+            picture_one: row.picture_one, 
             amount: row.amount, price: row.price, delivery_type: row.delivery_type, order_type: row.order_type, ctpid: row.ctpid
           };
           if (row.ctpid) {
@@ -146,7 +146,7 @@ export default function (pool) {
             od_id: row.od_id,
             pid: row.pid,
             product_name: row.product_name,
-            picture_one: row.picture_one, // เก็บรูปไว้แสดงหน้าเว็บ
+            picture_one: row.picture_one, 
             amount: row.amount,
             price: row.price,
             delivery_type: row.delivery_type,
@@ -177,12 +177,9 @@ export default function (pool) {
   // ========================================================
   // API: อัปเดตสถานะออเดอร์ + เพิ่มเลขพัสดุ + ส่งแจ้งเตือน
   // ========================================================
-  // ========================================================
-  // API: อัปเดตสถานะออเดอร์ + เพิ่มเลขพัสดุ + ส่งแจ้งเตือน (แบบมี Switch Case)
-  // ========================================================
   router.put('/order/update/:oid', async (req, res) => {
     const { oid } = req.params;
-    const { status, tracking_number, eid, did } = req.body; 
+    const { status, tracking_number, eid, did } = req.body;
 
     if (!status || !eid) {
       return res.status(400).json({ error: 'ข้อมูลไม่ครบถ้วน (ต้องการ status และ eid)' });
@@ -207,14 +204,14 @@ export default function (pool) {
         return res.status(404).json({ error: 'ไม่พบออเดอร์รหัสนี้ในระบบ' });
       }
 
-      // ⭐️ 2. ดึง UID ของลูกค้าเจ้าของออเดอร์นี้
+      // 2. ดึง UID ของลูกค้าเจ้าของออเดอร์นี้
       const [orderRows] = await pool.promise().query('SELECT uid, date_received FROM `Order` WHERE oid = ?', [oid]);
-      
-      // ⭐️ 3. เพิ่มข้อความแจ้งเตือนลงตาราง Notification
+
+      // 3. เพิ่มข้อความแจ้งเตือนลงตาราง Notification
       if (orderRows.length > 0 && orderRows[0].uid) {
         const customerUid = orderRows[0].uid;
         const dateReceived = orderRows[0].date_received;
-        
+
         // จัดฟอร์แมตวันที่ให้สวยงาม (ถ้ามีการระบุวันที่ไว้)
         let formattedDate = "";
         if (dateReceived) {
@@ -260,7 +257,7 @@ export default function (pool) {
 
         // สั่งบันทึกลงตาราง Notification
         await pool.promise().query(
-          'INSERT INTO Notification (uid, message) VALUES (?, ?)', 
+          'INSERT INTO Notification (uid, message) VALUES (?, ?)',
           [customerUid, message]
         );
       }
@@ -294,21 +291,21 @@ export default function (pool) {
         return res.status(404).json({ error: 'ไม่พบออเดอร์รหัสนี้ในระบบ' });
       }
 
-      // ⭐️ 2. ดึง UID ของลูกค้า
+      // 2. ดึง UID ของลูกค้า
       const [orderRows] = await pool.promise().query('SELECT uid FROM `Order` WHERE oid = ?', [oid]);
-      
-      // ⭐️ 3. เพิ่มข้อความแจ้งเตือนลงตาราง Notification
+
+      // 3. เพิ่มข้อความแจ้งเตือนลงตาราง Notification
       if (orderRows.length > 0 && orderRows[0].uid) {
         const customerUid = orderRows[0].uid;
-        
+
         // แปลงรูปแบบวันที่ให้อ่านง่ายขึ้น (เช่น 25/12/2026)
         const dateObj = new Date(date_received);
         const formattedDate = dateObj.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
-        
+
         const message = `ออเดอร์ OID: ${oid} ของคุณพร้อมแล้ว! สามารถเข้ามารับที่ร้านได้ในวันที่ ${formattedDate}`;
 
         await pool.promise().query(
-          'INSERT INTO Notification (uid, message) VALUES (?, ?)', 
+          'INSERT INTO Notification (uid, message) VALUES (?, ?)',
           [customerUid, message]
         );
       }
@@ -371,13 +368,13 @@ export default function (pool) {
       for (const item of orders) {
         if (item.pid && item.amount) {
           const [checkStock] = await connection.query("SELECT name, amount FROM Product WHERE pid = ?", [item.pid]);
-          
+
           if (checkStock.length === 0) {
             throw new Error(`ไม่พบสินค้า (รหัส: ${item.pid}) ในระบบ`);
           }
-          
+
           const currentStock = checkStock[0].amount;
-          
+
           // ถ้าจำนวนที่สั่ง > สต๊อกที่มี ให้สั่งยกเลิก (throw Error) ทันที!
           if (item.amount > currentStock) {
             throw new Error(`ขออภัย สินค้า "${checkStock[0].name}" มีสต๊อกไม่เพียงพอ (เหลือเพียง ${currentStock} ชิ้น)`);
@@ -398,7 +395,7 @@ export default function (pool) {
       await connection.query(detailSql, [values]);
       await connection.query("DELETE FROM Cart WHERE uid = ?", [uid]);
 
-      // ⭐️ 3. วนลูปตัดสต๊อกสินค้า (หัก amount ตามจำนวนที่ซื้อ)
+      // 3. วนลูปตัดสต๊อกสินค้า (หัก amount ตามจำนวนที่ซื้อ)
       for (const item of orders) {
         if (item.pid && item.amount) {
           await connection.query(
@@ -458,7 +455,7 @@ export default function (pool) {
 
       await connection.query(detailSql, [orderId, uid, ctpid, 1, total_price, address_details, shipping_method, order_type]);
 
-      // ⭐️ หักสต๊อกชิ้นส่วนคอมพิวเตอร์แต่ละชิ้นที่ถูกเลือกจัดสเปค (ชิ้นละ 1 ชิ้น)
+      // หักสต๊อกชิ้นส่วนคอมพิวเตอร์แต่ละชิ้นที่ถูกเลือกจัดสเปค (ชิ้นละ 1 ชิ้น)
       for (const item of items) {
         if (item.pid) {
           await connection.query(
@@ -503,7 +500,7 @@ export default function (pool) {
     const connection = await pool.promise().getConnection();
 
     try {
-      // ⭐️ 1. แก้ไขตรงนี้: ดึงข้อมูล Order พร้อม JOIN เอาชื่อขนส่ง (delivery_name) มาด้วย
+      // 1. แก้ไขตรงนี้: ดึงข้อมูล Order พร้อม JOIN เอาชื่อขนส่ง (delivery_name) มาด้วย
       const sqlOrder = `
         SELECT o.*, d.name AS delivery_name 
         FROM \`Order\` o
@@ -567,14 +564,14 @@ export default function (pool) {
 
 
   router.get("/order/user/:uid", async (req, res) => {
-  const uid = req.params.uid;
-  const connection = await pool.promise().getConnection();
-  try {
-    const sql = `
+    const uid = req.params.uid;
+    const connection = await pool.promise().getConnection();
+    try {
+      const sql = `
       SELECT o.*, od.order_type, 
              MAX(p.name) as product_name, 
              MAX(p.picture_one) as picture_one,
-             d.name as delivery_name  -- ⭐️ ตรงนี้สำคัญ: เราดึงจาก d.name แต่ตั้งชื่อว่า delivery_name
+             d.name as delivery_name 
       FROM \`Order\` o
       LEFT JOIN Order_details od ON o.oid = od.order_id
       LEFT JOIN Product p ON od.pid = p.pid
@@ -583,15 +580,15 @@ export default function (pool) {
       GROUP BY o.oid
       ORDER BY o.order_date DESC
     `;
-    const [orders] = await connection.query(sql, [uid]);
-    res.json({ success: true, orders: orders });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "ดึงข้อมูลล้มเหลว" });
-  } finally {
-    connection.release();
-  }
-});
+      const [orders] = await connection.query(sql, [uid]);
+      res.json({ success: true, orders: orders });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ success: false, message: "ดึงข้อมูลล้มเหลว" });
+    } finally {
+      connection.release();
+    }
+  });
 
 
   router.put("/order/cancel/:id", async (req, res) => {
@@ -606,19 +603,19 @@ export default function (pool) {
       );
 
       if (result.affectedRows > 0) {
-        
-        // ⭐️ 2. ดึง UID ของลูกค้าเจ้าของออเดอร์นี้ เพื่อเตรียมส่งแจ้งเตือน
+
+        // 2. ดึง UID ของลูกค้าเจ้าของออเดอร์นี้ เพื่อเตรียมส่งแจ้งเตือน
         const [orderRows] = await connection.query('SELECT uid FROM `Order` WHERE oid = ?', [orderId]);
-        
+
         if (orderRows.length > 0 && orderRows[0].uid) {
           const customerUid = orderRows[0].uid;
-          
+
           // ข้อความที่จะให้เด้งไปที่กระดิ่งแจ้งเตือน
           const message = `ออเดอร์ของคุณถูกยกเลิก ❌ หากมีข้อสงสัยเพิ่มเติมสามารถติดต่อสอบถามแอดมินได้เลยครับ`;
-          
-          // ⭐️ 3. สั่งบันทึกข้อความลงตาราง Notification
+
+          // 3. สั่งบันทึกข้อความลงตาราง Notification
           await connection.query(
-            'INSERT INTO Notification (uid, message) VALUES (?, ?)', 
+            'INSERT INTO Notification (uid, message) VALUES (?, ?)',
             [customerUid, message]
           );
         }
@@ -634,7 +631,7 @@ export default function (pool) {
       connection.release();
     }
   });
-  // Route สำหรับแก้ไข/อัปเดตสลิปโอนเงิน (PUT /api/order/update-payment/:id)
+
   router.put('/order/update-payment/:id', async (req, res) => {
     const orderId = req.params.id;
     const { payment_image } = req.body;
@@ -660,7 +657,7 @@ export default function (pool) {
       res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการอัปเดต" });
     }
   });
-  // Route สำหรับบันทึกรีวิว (PUT /api/order/review/:id)
+
   router.put('/order/review/:id', async (req, res) => {
     const orderId = req.params.id;
     const { review } = req.body;
@@ -670,7 +667,7 @@ export default function (pool) {
     }
 
     try {
-      // ⭐️ บันทึกรีวิวลงในคอลัมน์ review ของตาราง Order
+      // บันทึกรีวิวลงในคอลัมน์ review ของตาราง Order
       const [result] = await pool.promise().query(
         "UPDATE `Order` SET review = ? WHERE oid = ?",
         [review, orderId]
@@ -686,6 +683,7 @@ export default function (pool) {
       res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการบันทึกรีวิว" });
     }
   });
+
   router.put("/order/refund/:id", async (req, res) => {
     const orderId = req.params.id;
     const { bank, account, name } = req.body;
@@ -699,14 +697,14 @@ export default function (pool) {
       `;
       await connection.query(sql, [bank, account, name, orderId]);
 
-      // 🔔 ดึง UID เพื่อส่งการแจ้งเตือนให้ลูกค้า
+      // ดึง UID เพื่อส่งการแจ้งเตือนให้ลูกค้า
       const [orderRows] = await connection.query('SELECT uid FROM `Order` WHERE oid = ?', [orderId]);
       if (orderRows.length > 0 && orderRows[0].uid) {
         const customerUid = orderRows[0].uid;
         const message = `ออเดอร์ #${orderId} แจ้งขอคืนเงินสำเร็จ ระบบกำลังรอแอดมินตรวจสอบและโอนเงินคืนครับ 💸`;
         await connection.query('INSERT INTO Notification (uid, message) VALUES (?, ?)', [customerUid, message]);
       }
-      
+
       res.json({ success: true, message: "บันทึกข้อมูลขอคืนเงินสำเร็จ" });
     } catch (err) {
       console.error("SQL Error (/order/refund):", err.sqlMessage);
@@ -715,13 +713,14 @@ export default function (pool) {
       connection.release();
     }
   });
-router.put("/order/refund-confirm/:id", async (req, res) => {
+  
+  router.put("/order/refund-confirm/:id", async (req, res) => {
     const orderId = req.params.id;
-    const { admin_name, eid } = req.body; // ⭐️ รับค่า eid เพิ่มเติมจากหน้าบ้าน
+    const { admin_name, eid } = req.body; // รับค่า eid เพิ่มเติมจากหน้าบ้าน
     const connection = await pool.promise().getConnection();
 
     try {
-      // ⭐️ สั่ง UPDATE คอลัมน์ eid = ? เพิ่มเข้าไปในคำสั่งเดิมด้วยครับ
+      // สั่ง UPDATE คอลัมน์ eid = ? เพิ่มเข้าไปในคำสั่งเดิมด้วยครับ
       const sql = `
         UPDATE \`Order\` 
         SET refund_status = 'โอนคืนสำเร็จ', refund_admin = ?, eid = ? 
@@ -745,6 +744,7 @@ router.put("/order/refund-confirm/:id", async (req, res) => {
       connection.release();
     }
   });
+
   router.put('/order/pickup-image/:id', async (req, res) => {
     const orderId = req.params.id;
     const { pickup_image, eid } = req.body;
@@ -753,13 +753,14 @@ router.put("/order/refund-confirm/:id", async (req, res) => {
       // อัปเดตฐานข้อมูลด้วยรูป base64 และบันทึกรหัสพนักงานที่อัปเดต
       const sql = 'UPDATE `Order` SET pickup_image = ?, eid = ? WHERE oid = ?';
       await pool.promise().query(sql, [pickup_image, eid, orderId]);
-      
+
       res.json({ success: true, message: 'อัปโหลดรูปลูกค้ารับสินค้าเรียบร้อยแล้ว' });
     } catch (err) {
       console.error("Error updating pickup image:", err);
       res.status(500).json({ success: false, error: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูล' });
     }
   });
+  
   router.put('/order/received/:id', async (req, res) => {
     const orderId = req.params.id;
     try {

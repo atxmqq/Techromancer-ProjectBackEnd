@@ -1,4 +1,3 @@
-// api/cartRoute.js
 import express from 'express';
 
 export default function (pool) {

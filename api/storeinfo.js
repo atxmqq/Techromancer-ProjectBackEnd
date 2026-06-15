@@ -3,7 +3,7 @@ import express from 'express';
 export default function (pool) {
   const router = express.Router();
 
-  // Route สำหรับดึงข้อมูลร้านค้า (จะถูกเรียกผ่าน /api/store-info)
+  // Route สำหรับดึงข้อมูลร้านค้า 
   router.get('/store-info', async (req, res) => {
     try {
       // ดึงข้อมูลจากตาราง Store_info (เอามาแค่ 1 แถวแรก)
@@ -12,10 +12,8 @@ export default function (pool) {
       const [results] = await pool.promise().query(sql);
 
       if (results.length > 0) {
-        // ถ้ามีข้อมูล ให้ส่งก้อนแรกกลับไป
         res.json(results[0]);
       } else {
-        // ถ้าตารางว่างเปล่า ให้ส่ง Object ว่างๆ กลับไป
         res.json({});
       }
     } catch (error) {
@@ -26,10 +24,10 @@ export default function (pool) {
 
   // --- API สำหรับเพิ่มข้อมูลร้านค้า (กรณีที่ยังไม่มีข้อมูลในระบบ) ---
   router.post('/store-info', async (req, res) => {
-    // ⭐️ เพิ่มการรับค่า shipping_fee จาก req.body
+    // เพิ่มการรับค่า shipping_fee จาก req.body
     const { address, phone, line, facebook, instagram, shipping_fee } = req.body;
     try {
-      // ⭐️ เพิ่มคอลัมน์ shipping_fee ในคำสั่ง SQL
+      // เพิ่มคอลัมน์ shipping_fee ในคำสั่ง SQL
       const sql = 'INSERT INTO Store_info (address, phone, line, facebook, instagram, shipping_fee) VALUES (?, ?, ?, ?, ?, ?)';
       await pool.promise().query(sql, [address, phone, line, facebook, instagram, shipping_fee || 0]);
       res.json({ message: 'เพิ่มข้อมูลร้านค้าสำเร็จ' });
@@ -42,10 +40,10 @@ export default function (pool) {
   // --- API สำหรับอัปเดตข้อมูลร้านค้า (กรณีที่มีข้อมูลอยู่แล้ว) ---
   router.put('/store-info/:sid', async (req, res) => {
     const { sid } = req.params;
-    // ⭐️ เพิ่มการรับค่า shipping_fee จาก req.body
+    // เพิ่มการรับค่า shipping_fee จาก req.body
     const { address, phone, line, facebook, instagram, shipping_fee } = req.body;
     try {
-      // ⭐️ เพิ่มโครงสร้าง SET shipping_fee=? ลงใน UPDATE SQL
+      // เพิ่มโครงสร้าง SET shipping_fee=? ลงใน UPDATE SQL
       const sql = 'UPDATE Store_info SET address=?, phone=?, line=?, facebook=?, instagram=?, shipping_fee=? WHERE sid=?';
       await pool.promise().query(sql, [address, phone, line, facebook, instagram, shipping_fee || 0, sid]);
       res.json({ message: 'อัปเดตข้อมูลร้านค้าสำเร็จ' });
@@ -98,7 +96,7 @@ export default function (pool) {
     try {
       const sql = 'SELECT * FROM Delivery_Service_Provider';
       const [results] = await pool.promise().query(sql);
-      res.json(results); // ส่งกลับเป็น Array ได้เลย
+      res.json(results); 
     } catch (error) {
       console.error("Error fetching Delivery_Service_Provider:", error);
       res.status(500).json({ error: "เกิดข้อผิดพลาดในการดึงข้อมูลบัญชี" });

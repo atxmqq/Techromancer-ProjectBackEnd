@@ -81,65 +81,59 @@ export default function (pool) {
         }
     });
 
-    // ในไฟล์ employee.js
 
-// ⭐️ ลบ upload.single('profile_image') ออกไปเลย
-router.put('/employee/update-profile/:eid', async (req, res) => {
-    const { eid } = req.params;
-    
-    // ⭐️ รับค่าแบบ JSON (Base64)
-    const { profile_image } = req.body; 
+    router.put('/employee/update-profile/:eid', async (req, res) => {
+        const { eid } = req.params;
 
-    if (!profile_image) {
-        return res.status(400).json({ error: 'กรุณาเลือกไฟล์รูปภาพ' });
-    }
+        const { profile_image } = req.body;
 
-    try {
-        // อัปเดตลง Database ในคอลัมน์ profile (ต้องเป็น LONGTEXT)
-        const sqlQuery = `UPDATE Employee SET profile = ? WHERE eid = ?`;
-        
-        // ใช้ pool.promise() ให้เหมือนกับที่คุณทำใน house_reg
-        const [result] = await pool.promise().query(sqlQuery, [profile_image, eid]);
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'ไม่พบข้อมูลพนักงาน' });
+        if (!profile_image) {
+            return res.status(400).json({ error: 'กรุณาเลือกไฟล์รูปภาพ' });
         }
 
-        res.json({ message: 'อัปเดตโปรไฟล์สำเร็จ', profileUrl: profile_image });
-    } catch (err) {
-        console.error('Error updating profile image:', err);
-        res.status(500).json({ error: 'เกิดข้อผิดพลาดในการบันทึกรูปโปรไฟล์' });
-    }
-});
+        try {
+            // อัปเดตลง Database ในคอลัมน์ profile 
+            const sqlQuery = `UPDATE Employee SET profile = ? WHERE eid = ?`;
 
-   // API สำหรับอัปเดตสำเนาทะเบียนบ้าน (รับเป็น Base64)
-  router.put('/employee/update-house-reg/:eid', async (req, res) => {
-    const { eid } = req.params;
-    const { house_reg_image } = req.body; // รับ Base64 มาจาก req.body โดยตรง
+            const [result] = await pool.promise().query(sqlQuery, [profile_image, eid]);
 
-    if (!house_reg_image) {
-      return res.status(400).json({ error: "ไม่มีรูปภาพส่งมา" });
-    }
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'ไม่พบข้อมูลพนักงาน' });
+            }
 
-    try {
-      // บันทึก Base64 ลงในฐานข้อมูลตรงๆ
-      const [result] = await pool.promise().query(
-        "UPDATE Employee SET house_registration = ? WHERE eid = ?",
-        [house_reg_image, eid]
-      );
+            res.json({ message: 'อัปเดตโปรไฟล์สำเร็จ', profileUrl: profile_image });
+        } catch (err) {
+            console.error('Error updating profile image:', err);
+            res.status(500).json({ error: 'เกิดข้อผิดพลาดในการบันทึกรูปโปรไฟล์' });
+        }
+    });
 
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ error: "ไม่พบข้อมูลพนักงาน" });
-      }
+    // API สำหรับอัปเดตสำเนาทะเบียนบ้าน 
+    router.put('/employee/update-house-reg/:eid', async (req, res) => {
+        const { eid } = req.params;
+        const { house_reg_image } = req.body;
 
-      res.json({ success: true, message: "อัปโหลดสำเร็จ" });
-    } catch (error) {
-      console.error("Error updating house registration:", error);
-      res.status(500).json({ error: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์" });
-    }
-  });
+        if (!house_reg_image) {
+            return res.status(400).json({ error: "ไม่มีรูปภาพส่งมา" });
+        }
 
-    // --- API สำหรับอัปเดตข้อมูลส่วนตัว (แก้บั๊ก SQL Syntax เรียบร้อย) ---
+        try {
+            const [result] = await pool.promise().query(
+                "UPDATE Employee SET house_registration = ? WHERE eid = ?",
+                [house_reg_image, eid]
+            );
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: "ไม่พบข้อมูลพนักงาน" });
+            }
+
+            res.json({ success: true, message: "อัปโหลดสำเร็จ" });
+        } catch (error) {
+            console.error("Error updating house registration:", error);
+            res.status(500).json({ error: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์" });
+        }
+    });
+
     router.put('/employee/update-info/:eid', (req, res) => {
         const { eid } = req.params;
         const { fullname, email, phone, national_id, guarantor } = req.body;
@@ -181,7 +175,6 @@ router.put('/employee/update-profile/:eid', async (req, res) => {
     });
 
 
-    // --- API สำหรับอัปเดตสถานะพนักงาน ---
     router.put('/employee/update-status/:eid', (req, res) => {
         const { eid } = req.params;
         const { status } = req.body;
@@ -203,13 +196,11 @@ router.put('/employee/update-profile/:eid', async (req, res) => {
     });
 
 
-    // --- API สำหรับเปลี่ยนรหัสผ่านพนักงาน/แอดมิน ---
     router.put('/employee/change-password/:eid', async (req, res) => {
         const { eid } = req.params;
         const { oldPassword, newPassword } = req.body;
 
         try {
-            // 1. เพิ่มการดึง type ออกมาเพื่อใช้เช็คเงื่อนไข
             pool.query('SELECT password, type FROM Employee WHERE eid = ?', [eid], async (err, results) => {
                 if (err) return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูล' });
                 if (results.length === 0) return res.status(404).json({ error: 'ไม่พบพนักงานในระบบ' });
@@ -220,7 +211,7 @@ router.put('/employee/update-profile/:eid', async (req, res) => {
                 let isMatch = false;
                 let finalNewPassword = newPassword;
 
-                // 👇 2. แบ่งการทำงานระหว่าง Admin กับตำแหน่งอื่นๆ
+                // 2. แบ่งการทำงานระหว่าง Admin กับตำแหน่งอื่นๆ
                 if (empType === 'Admin') {
                     // Admin: เช็ครหัสตรงๆ และ ไม่แฮชรหัสใหม่
                     isMatch = (oldPassword === storedPassword);
@@ -245,32 +236,31 @@ router.put('/employee/update-profile/:eid', async (req, res) => {
             res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
         }
     });
-    // API สำหรับอัปเดตที่อยู่พนักงานโดยเฉพาะ (ตาราง Employee)
-  router.put('/employee/update-address/:eid', async (req, res) => {
-    const { eid } = req.params;
-    const { address } = req.body;
 
-    if (!address) {
-      return res.status(400).json({ error: "ไม่มีข้อมูลที่อยู่ส่งมา" });
-    }
+    router.put('/employee/update-address/:eid', async (req, res) => {
+        const { eid } = req.params;
+        const { address } = req.body;
 
-    try {
-      // อัปเดตคอลัมน์ address ลงในตาราง Employee
-      const [result] = await pool.promise().query(
-        "UPDATE Employee SET address = ? WHERE eid = ?",
-        [address, eid]
-      );
+        if (!address) {
+            return res.status(400).json({ error: "ไม่มีข้อมูลที่อยู่ส่งมา" });
+        }
 
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ error: "ไม่พบข้อมูลพนักงาน" });
-      }
+        try {
+            const [result] = await pool.promise().query(
+                "UPDATE Employee SET address = ? WHERE eid = ?",
+                [address, eid]
+            );
 
-      res.json({ success: true, message: "อัปเดตที่อยู่พนักงานสำเร็จ" });
-    } catch (error) {
-      console.error("Error updating employee address:", error);
-      res.status(500).json({ error: "เกิดข้อผิดพลาดในการอัปเดตที่อยู่" });
-    }
-  });
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: "ไม่พบข้อมูลพนักงาน" });
+            }
+
+            res.json({ success: true, message: "อัปเดตที่อยู่พนักงานสำเร็จ" });
+        } catch (error) {
+            console.error("Error updating employee address:", error);
+            res.status(500).json({ error: "เกิดข้อผิดพลาดในการอัปเดตที่อยู่" });
+        }
+    });
 
     return router;
 }

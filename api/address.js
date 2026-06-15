@@ -3,16 +3,14 @@ import express from 'express';
 export default function(pool) {
   const router = express.Router();
   
-  // GET /api/address/:uid
   router.get('/:uid', (req, res) => {
     console.log("🔥 มีคนเรียก URL นี้ด้วย UID:", req.params.uid);
     const uid = req.params.uid;
-    // ⭐️ เพิ่ม fullname และ phone เข้าไปใน SQL
+    // เพิ่ม fullname และ phone เข้าไปใน SQL
     pool.query('SELECT address, fullname, phone FROM User WHERE uid = ?', [uid], (err, results) => {
       if (err) return res.status(500).json({ error: 'เกิดข้อผิดพลาด' });
       
       if (results.length > 0) {
-        // ส่งข้อมูลให้ตรงกับที่หน้าเว็บต้องการ
         res.json({
             address: results[0].address || '',
             fullname: results[0].fullname || '',
@@ -24,8 +22,6 @@ export default function(pool) {
     });
 });
 
-  // POST /api/address/add
-  // POST /api/address/add
   router.post('/add', (req, res) => {
     const { uid, address } = req.body;
 

@@ -88,13 +88,13 @@ export default function (pool) {
 
 
     router.get('/products/search', (req, res) => {
-        const { q } = req.query; // รับค่า search query จาก URL (เช่น /products/search?q=...)
+        const { q } = req.query; 
 
         if (!q) {
             return res.status(400).json({ error: 'กรุณาระบุคำค้นหา (q)' });
         }
 
-        const searchTerm = `%${q}%`; // เพิ่ม % เพื่อให้ SQL LIKE ทำงานได้ถูกต้อง
+        const searchTerm = `%${q}%`; 
 
         pool.query(
             `SELECT 
@@ -110,7 +110,7 @@ export default function (pool) {
             JOIN Product_Categories pc ON p.pc_id = pc.pc_id
             JOIN Product_Type pt ON p.pt_id = pt.pt_id
             WHERE p.name LIKE ? OR p.details LIKE ?`,
-            [searchTerm, searchTerm], // ส่งค่า searchTerm ไปให้ SQL query
+            [searchTerm, searchTerm], 
             (err, results) => {
                 if (err) {
                     console.error('Error searching products:', err);
@@ -153,7 +153,7 @@ export default function (pool) {
     });
 
 
-    // ✅ ดึงข้อมูลสินค้าพร้อมรายละเอียด
+    // ดึงข้อมูลสินค้าพร้อมรายละเอียด
     router.get("/products/:pid", async (req, res) => {
         const { pid } = req.params;
 
@@ -219,7 +219,7 @@ export default function (pool) {
             res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' });
         }
     });
-    // --- โค้ดสำหรับระบบกดถูกใจ (Like) ---
+    // --- ระบบกดถูกใจ (Like) ---
     router.post('/like', (req, res) => {
         const { uid, pid } = req.body;
 
@@ -282,8 +282,6 @@ export default function (pool) {
     });
 
 
-
-    // --- API สำหรับเพิ่มสินค้าใหม่ (POST) ---
     router.post("/products", async (req, res) => {
         const db = pool.promise();
         const {
@@ -367,7 +365,7 @@ export default function (pool) {
     });
 
 
-    // --- API สำหรับแก้ไขข้อมูลสินค้า (PUT) ---
+    // --- API สำหรับแก้ไขข้อมูลสินค้า ---
     router.put("/products/:pid", async (req, res) => {
         const { pid } = req.params;
         const db = pool.promise();
@@ -459,7 +457,7 @@ export default function (pool) {
 
 
 
-    // --- API สำหรับลบสินค้า (DELETE) ---
+    // --- API สำหรับลบสินค้า ---
     router.delete("/products/:pid", async (req, res) => {
         const { pid } = req.params;
         try {

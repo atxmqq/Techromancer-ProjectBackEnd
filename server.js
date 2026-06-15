@@ -29,7 +29,6 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 console.log('✅ Database pool is ready to use');
 
-// ส่ง pool ที่ดึงมา เข้าไปใน Route ต่างๆ
 app.use('/api', loginRoute(pool));
 app.use('/api', register(pool));
 app.use('/api', userRoute(pool));
@@ -46,10 +45,10 @@ app.use('/api', helpsection(pool));
 
 
 cron.schedule('0 0 * * *', async () => {
-  console.log('⏰ [Cron Job] เริ่มตรวจสอบออเดอร์ที่จัดส่งเกิน 7 วัน...');
-  
+  console.log('เริ่มตรวจสอบออเดอร์ที่จัดส่งเกิน 7 วัน...');
+
   try {
-    // ⭐️ คำสั่ง SQL: ค้นหาออเดอร์ที่สถานะเป็น 'อยู่ระหว่างจัดส่ง' 
+    // คำสั่ง SQL: ค้นหาออเดอร์ที่สถานะเป็น 'อยู่ระหว่างจัดส่ง' 
     // และวันที่สั่งซื้อ (order_date) ผ่านมาแล้ว 7 วันขึ้นไป
     const sql = `
       UPDATE \`Order\` 
@@ -57,18 +56,18 @@ cron.schedule('0 0 * * *', async () => {
       WHERE status = 'อยู่ระหว่างจัดส่ง' 
       AND DATEDIFF(NOW(), order_date) >= 7
     `;
-    
+
     // สั่งรัน SQL (ต้องมั่นใจว่าในไฟล์นี้คุณดึงตัวแปร pool มาใช้งานแล้ว)
     const [result] = await pool.promise().query(sql);
 
     if (result.affectedRows > 0) {
-      console.log(`✅ [Cron Job] อัปเดตสถานะเป็น 'จัดส่งสำเร็จ' อัตโนมัติจำนวน ${result.affectedRows} ออเดอร์`);
+      console.log(`อัปเดตสถานะเป็น 'จัดส่งสำเร็จ' อัตโนมัติจำนวน ${result.affectedRows} ออเดอร์`);
     } else {
-      console.log('➖ [Cron Job] ไม่มีออเดอร์ที่ต้องอัปเดตสถานะในวันนี้');
+      console.log('ไม่มีออเดอร์ที่ต้องอัปเดตสถานะในวันนี้');
     }
 
   } catch (error) {
-    console.error('❌ [Cron Job] เกิดข้อผิดพลาด:', error.message);
+    console.error('เกิดข้อผิดพลาด:', error.message);
   }
 });
 
