@@ -26,10 +26,12 @@ export default function (pool) {
 
   // --- API สำหรับเพิ่มข้อมูลร้านค้า (กรณีที่ยังไม่มีข้อมูลในระบบ) ---
   router.post('/store-info', async (req, res) => {
-    const { address, phone, line, facebook, instagram } = req.body;
+    // ⭐️ เพิ่มการรับค่า shipping_fee จาก req.body
+    const { address, phone, line, facebook, instagram, shipping_fee } = req.body;
     try {
-      const sql = 'INSERT INTO Store_info (address, phone, line, facebook, instagram) VALUES (?, ?, ?, ?, ?)';
-      await pool.promise().query(sql, [address, phone, line, facebook, instagram]);
+      // ⭐️ เพิ่มคอลัมน์ shipping_fee ในคำสั่ง SQL
+      const sql = 'INSERT INTO Store_info (address, phone, line, facebook, instagram, shipping_fee) VALUES (?, ?, ?, ?, ?, ?)';
+      await pool.promise().query(sql, [address, phone, line, facebook, instagram, shipping_fee || 0]);
       res.json({ message: 'เพิ่มข้อมูลร้านค้าสำเร็จ' });
     } catch (error) {
       console.error("Error inserting Store_info:", error);
@@ -40,10 +42,12 @@ export default function (pool) {
   // --- API สำหรับอัปเดตข้อมูลร้านค้า (กรณีที่มีข้อมูลอยู่แล้ว) ---
   router.put('/store-info/:sid', async (req, res) => {
     const { sid } = req.params;
-    const { address, phone, line, facebook, instagram } = req.body;
+    // ⭐️ เพิ่มการรับค่า shipping_fee จาก req.body
+    const { address, phone, line, facebook, instagram, shipping_fee } = req.body;
     try {
-      const sql = 'UPDATE Store_info SET address=?, phone=?, line=?, facebook=?, instagram=? WHERE sid=?';
-      await pool.promise().query(sql, [address, phone, line, facebook, instagram, sid]);
+      // ⭐️ เพิ่มโครงสร้าง SET shipping_fee=? ลงใน UPDATE SQL
+      const sql = 'UPDATE Store_info SET address=?, phone=?, line=?, facebook=?, instagram=?, shipping_fee=? WHERE sid=?';
+      await pool.promise().query(sql, [address, phone, line, facebook, instagram, shipping_fee || 0, sid]);
       res.json({ message: 'อัปเดตข้อมูลร้านค้าสำเร็จ' });
     } catch (error) {
       console.error("Error updating Store_info:", error);

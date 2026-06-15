@@ -4,6 +4,9 @@ import bcrypt from 'bcrypt'; // ✅ ต้อง import bcrypt
 export default function (pool) {
   const router = express.Router();
 
+  // ==========================================
+  // สำหรับสมาชิกทั่วไป (User)
+  // ==========================================
   router.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
@@ -22,6 +25,11 @@ export default function (pool) {
         }
 
         const user = results[0];
+
+        // ⭐️ สเต็ปที่ 1: ดักจับสถานะ Ban ตรงนี้เลย (ทำก่อนเช็ครหัสผ่าน)
+        if (user.status === 'Ban') {
+          return res.status(403).json({ error: 'บัญชีของคุณถูกระงับการใช้งาน กรุณาติดต่อแอดมิน' });
+        }
 
         const passwordMatch = await bcrypt.compare(password, user.password);
         if (!passwordMatch) {
@@ -42,7 +50,11 @@ export default function (pool) {
     );
   });
 
-router.post('/loginemployee', async (req, res) => {
+
+  // ==========================================
+  // สำหรับพนักงานและแอดมิน (Employee)
+  // ==========================================
+  router.post('/loginemployee', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -60,6 +72,12 @@ router.post('/loginemployee', async (req, res) => {
         }
 
         const employee = results[0];
+
+        // ⭐️ ดักจับสถานะพนักงานที่โดนไล่ออก (Terminated) ไม่ให้เข้าหลังบ้านได้
+        if (employee.status === 'Terminated') {
+          return res.status(403).json({ error: 'บัญชีนี้ถูกยกเลิกการใช้งานแล้ว ไม่สามารถเข้าสู่ระบบได้' });
+        }
+
         let passwordMatch = false;
 
         // 👇 เช็คประเภทพนักงาน ถ้าเป็น Admin ให้เทียบรหัสผ่านตรงๆ ถ้าไม่ใช่ให้เทียบด้วย bcrypt
@@ -87,7 +105,23 @@ router.post('/loginemployee', async (req, res) => {
       }
     );
   });
+  router.get('/user/check-status/:uid', async (req, res) => {
+    const { uid } = req.params;
+    
+    if (!uid) return res.status(400).json({ error: 'ไม่พบ UID' });
 
+    pool.query(
+      'SELECT status FROM User WHERE uid = ?',
+      [uid],
+      (err, results) => {
+        if (err) return res.status(500).json({ error: 'Server error' });
+        if (results.length === 0) return res.status(404).json({ error: 'ไม่พบผู้ใช้งาน' });
+
+        // ส่งสถานะปัจจุบันกลับไปให้หน้าเว็บ
+        res.json({ status: results[0].status });
+      }
+    );
+  });
 
   return router;
 }

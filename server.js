@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-
 import pool from './db.js';
 
 import loginRoute from './api/login.js';
@@ -44,6 +43,34 @@ app.use('/api', employee(pool));
 app.use('/uploadsEmployeeProfile', express.static(path.join(__dirname, 'uploadsEmployeeProfile')));
 app.use('/api', storeInfoRouter(pool));
 app.use('/api', helpsection(pool));
+
+
+cron.schedule('0 0 * * *', async () => {
+  console.log('⏰ [Cron Job] เริ่มตรวจสอบออเดอร์ที่จัดส่งเกิน 7 วัน...');
+  
+  try {
+    // ⭐️ คำสั่ง SQL: ค้นหาออเดอร์ที่สถานะเป็น 'อยู่ระหว่างจัดส่ง' 
+    // และวันที่สั่งซื้อ (order_date) ผ่านมาแล้ว 7 วันขึ้นไป
+    const sql = `
+      UPDATE \`Order\` 
+      SET status = 'จัดส่งสำเร็จ' 
+      WHERE status = 'อยู่ระหว่างจัดส่ง' 
+      AND DATEDIFF(NOW(), order_date) >= 7
+    `;
+    
+    // สั่งรัน SQL (ต้องมั่นใจว่าในไฟล์นี้คุณดึงตัวแปร pool มาใช้งานแล้ว)
+    const [result] = await pool.promise().query(sql);
+
+    if (result.affectedRows > 0) {
+      console.log(`✅ [Cron Job] อัปเดตสถานะเป็น 'จัดส่งสำเร็จ' อัตโนมัติจำนวน ${result.affectedRows} ออเดอร์`);
+    } else {
+      console.log('➖ [Cron Job] ไม่มีออเดอร์ที่ต้องอัปเดตสถานะในวันนี้');
+    }
+
+  } catch (error) {
+    console.error('❌ [Cron Job] เกิดข้อผิดพลาด:', error.message);
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);

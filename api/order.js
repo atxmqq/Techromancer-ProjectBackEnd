@@ -745,7 +745,37 @@ router.put("/order/refund-confirm/:id", async (req, res) => {
       connection.release();
     }
   });
+  router.put('/order/pickup-image/:id', async (req, res) => {
+    const orderId = req.params.id;
+    const { pickup_image, eid } = req.body;
 
+    try {
+      // อัปเดตฐานข้อมูลด้วยรูป base64 และบันทึกรหัสพนักงานที่อัปเดต
+      const sql = 'UPDATE `Order` SET pickup_image = ?, eid = ? WHERE oid = ?';
+      await pool.promise().query(sql, [pickup_image, eid, orderId]);
+      
+      res.json({ success: true, message: 'อัปโหลดรูปลูกค้ารับสินค้าเรียบร้อยแล้ว' });
+    } catch (err) {
+      console.error("Error updating pickup image:", err);
+      res.status(500).json({ success: false, error: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูล' });
+    }
+  });
+  router.put('/order/received/:id', async (req, res) => {
+    const orderId = req.params.id;
+    try {
+      // อัปเดตสถานะเป็นจัดส่งสำเร็จ (ไม่ต้องใช้ eid เพราะลูกค้าทำเอง)
+      const sql = "UPDATE `Order` SET status = 'จัดส่งสำเร็จ' WHERE oid = ?";
+      const [result] = await pool.promise().query(sql, [orderId]);
 
+      if (result.affectedRows > 0) {
+        res.json({ success: true, message: "ยืนยันการรับสินค้าสำเร็จ" });
+      } else {
+        res.status(404).json({ success: false, message: "ไม่พบออเดอร์นี้" });
+      }
+    } catch (error) {
+      console.error("Error receiving order:", error);
+      res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการอัปเดตสถานะ" });
+    }
+  });
   return router;
 }
