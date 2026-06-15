@@ -717,21 +717,27 @@ export default function (pool) {
   });
 router.put("/order/refund-confirm/:id", async (req, res) => {
     const orderId = req.params.id;
+    const { admin_name, eid } = req.body; // ⭐️ รับค่า eid เพิ่มเติมจากหน้าบ้าน
     const connection = await pool.promise().getConnection();
 
     try {
-      const sql = `UPDATE \`Order\` SET refund_status = 'โอนคืนสำเร็จ' WHERE oid = ?`;
-      await connection.query(sql, [orderId]);
+      // ⭐️ สั่ง UPDATE คอลัมน์ eid = ? เพิ่มเข้าไปในคำสั่งเดิมด้วยครับ
+      const sql = `
+        UPDATE \`Order\` 
+        SET refund_status = 'โอนคืนสำเร็จ', refund_admin = ?, eid = ? 
+        WHERE oid = ?
+      `;
+      await connection.query(sql, [admin_name, eid, orderId]);
 
-      // 🔔 ดึง UID เพื่อส่งการแจ้งเตือนให้ลูกค้า
+      // ดึง UID เพื่อส่งการแจ้งเตือนให้ลูกค้า (โค้ดส่วนแจ้งเตือนกระดิ่งเดิมของคุณ...)
       const [orderRows] = await connection.query('SELECT uid FROM `Order` WHERE oid = ?', [orderId]);
       if (orderRows.length > 0 && orderRows[0].uid) {
         const customerUid = orderRows[0].uid;
-        const message = `ออเดอร์ #${orderId} ของคุณได้รับการโอนเงินคืนสำเร็จแล้ว! ตรวจสอบยอดเงินในบัญชีของคุณได้เลยครับ 💳✨`;
+        const message = `ออเดอร์ #${orderId} ของคุณได้รับการโอนเงินคืนสำเร็จแล้ว! (ดำเนินการโดยแอดมิน: ${admin_name}) ตรวจสอบยอดเงินได้เลยครับ 💳✨`;
         await connection.query('INSERT INTO Notification (uid, message) VALUES (?, ?)', [customerUid, message]);
       }
 
-      res.json({ success: true, message: "อัปเดตสถานะการคืนเงินเป็น โอนคืนสำเร็จ แล้ว" });
+      res.json({ success: true, message: "อัปเดตสถานะการคืนเงินและบันทึกผู้ดำเนินการสำเร็จ" });
     } catch (err) {
       console.error("SQL Error (/order/refund-confirm):", err.sqlMessage);
       res.status(500).json({ success: false, error: "ไม่สามารถอัปเดตสถานะได้" });
