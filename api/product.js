@@ -27,6 +27,12 @@ export default function (pool) {
         vga.GPU_Model AS vga_model,
         vga.Memory_Size AS vga_memory,
         vga.Power_Requirement AS vga_power,
+
+        ram.Brand AS ram_brand,
+        ram.Memory_Series AS ram_series,
+        ram.Memory_Capacity AS ram_capacity,
+        ram.Speed AS ram_speed,
+        ram.Memory_Type AS ram_type,
         
         -- 1. เช็ค CPU ↔ เมนบอร์ด (จับคู่ Socket)
         COALESCE(cpu.Socket_Type, mb.CPU_Socket) AS socket_type,
