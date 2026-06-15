@@ -49,6 +49,9 @@ export default function (pool) {
 
         pw.Brand AS pw_brand,
         pw.Continuous_Power_W AS pw_wattage,
+
+        c.Brand AS case_brand,
+        c.Mainboard_Support AS case_mb_support,
         
         -- 1. เช็ค CPU ↔ เมนบอร์ด (จับคู่ Socket)
         COALESCE(cpu.Socket_Type, mb.CPU_Socket) AS socket_type,
