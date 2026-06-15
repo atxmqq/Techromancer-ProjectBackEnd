@@ -601,7 +601,7 @@ export default function (pool) {
     try {
       // 1. อัปเดตสถานะในตาราง Order เป็น 'ยกเลิก'
       const [result] = await connection.query(
-        "UPDATE `Order` SET status = 'ยกเลิก' WHERE oid = ?",
+        "UPDATE `Order` SET status = 'ยกเลิก', eid = NULL WHERE oid = ?",
         [orderId]
       );
 
