@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 
-// Import pool จากไฟล์ db.js ที่เราสร้างไว้
 import pool from './db.js';
 
 import loginRoute from './api/login.js';
@@ -10,7 +9,6 @@ import userRoute from './api/userRoute.js';
 import productRoute from './api/product.js';
 import cartRoute from './api/cartRoute.js';
 import addressRouter from './api/address.js';
-import paymentRoutes from './api/payment.js';
 import orderRoute from './api/order.js';
 import custompcRoute from './api/custompc.js';
 import employee from './api/employee.js';
@@ -39,7 +37,6 @@ app.use('/api', userRoute(pool));
 app.use('/api', productRoute(pool));
 app.use('/api', cartRoute(pool));
 app.use('/api/address', addressRouter(pool));
-app.use('/api', paymentRoutes); // อันนี้ไม่ได้ส่ง pool ไป (อิงตามโค้ดเดิมของคุณ)
 app.use('/api', orderRoute(pool));
 app.use('/uploads', express.static('uploads'));
 app.use('/api', custompcRoute(pool));
