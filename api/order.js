@@ -427,10 +427,22 @@ export default function (pool) {
       await connection.beginTransaction();
 
       // สร้างตาราง Custom_PC
-      const buildSql = `INSERT INTO Custom_PC (Cpu, Mainboard, Vga, Ram, HDD, SSD, Power, Cases) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+      const buildSql = `
+        INSERT INTO Custom_PC 
+        (Cpu, Cpu_price, Mainboard, Mainboard_price, Vga, Vga_price, Ram, Ram_price, HDD, HDD_price, SSD, SSD_price, Power, Power_price, Cases, Cases_price) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
       const findItem = (id) => items.find(i => i.pc_id === id)?.pid || null;
+      const findPrice = (id) => items.find(i => i.pc_id === id)?.price_before || null;
       const [buildResult] = await connection.query(buildSql, [
-        findItem(1), findItem(3), findItem(9), findItem(2), findItem(4), findItem(5), findItem(6), findItem(7)
+        findItem(1), findPrice(1),
+        findItem(3), findPrice(3),
+        findItem(9), findPrice(9),
+        findItem(2), findPrice(2),
+        findItem(4), findPrice(4),
+        findItem(5), findPrice(5),
+        findItem(6), findPrice(6),
+        findItem(7), findPrice(7)
       ]);
       const ctpid = buildResult.insertId;
 
@@ -515,14 +527,14 @@ export default function (pool) {
         if (item.ctpid) {
           const sqlParts = `
             SELECT c.*, 
-                   p1.name as cpu_name, p1.price_before as cpu_price, p1.picture_one as cpu_img,
-                   p2.name as mb_name, p2.price_before as mb_price, p2.picture_one as mb_img,
-                   p3.name as vga_name, p3.price_before as vga_price, p3.picture_one as vga_img,
-                   p4.name as ram_name, p4.price_before as ram_price, p4.picture_one as ram_img,
-                   p5.name as hdd_name, p5.price_before as hdd_price, p5.picture_one as hdd_img,
-                   p6.name as ssd_name, p6.price_before as ssd_price, p6.picture_one as ssd_img,
-                   p7.name as power_name, p7.price_before as power_price, p7.picture_one as power_img,
-                   p8.name as case_name, p8.price_before as case_price, p8.picture_one as case_img
+                   p1.name as cpu_name, c.Cpu_price as cpu_price, p1.picture_one as cpu_img,
+                   p2.name as mb_name, c.Mainboard_price as mb_price, p2.picture_one as mb_img,
+                   p3.name as vga_name, c.Vga_price as vga_price, p3.picture_one as vga_img,
+                   p4.name as ram_name, c.Ram_price as ram_price, p4.picture_one as ram_img,
+                   p5.name as hdd_name, c.HDD_price as hdd_price, p5.picture_one as hdd_img,
+                   p6.name as ssd_name, c.SSD_price as ssd_price, p6.picture_one as ssd_img,
+                   p7.name as power_name, c.Power_price as power_price, p7.picture_one as power_img,
+                   p8.name as case_name, c.Cases_price as case_price, p8.picture_one as case_img
             FROM Custom_PC c
             LEFT JOIN Product p1 ON c.Cpu = p1.pid
             LEFT JOIN Product p2 ON c.Mainboard = p2.pid
