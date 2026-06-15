@@ -19,7 +19,7 @@ export default function (pool) {
 
         cpu.Brand AS cpu_brand,
         cpu.Series AS cpu_series,
-        cpu.CPU_Model AS cpu_processor, 
+        cpu.Processor_Number AS cpu_processor, 
         cpu.Socket_Type AS cpu_socket,
         
         -- 1. เช็ค CPU ↔ เมนบอร์ด (จับคู่ Socket)
