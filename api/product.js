@@ -46,6 +46,9 @@ export default function (pool) {
         st.Brand AS st_brand,
         st.Capacity AS st_capacity,
         st.Interface AS st_interface,
+
+        pw.Brand AS pw_brand,
+        pw.Continuous_Power_W AS pw_wattage,
         
         -- 1. เช็ค CPU ↔ เมนบอร์ด (จับคู่ Socket)
         COALESCE(cpu.Socket_Type, mb.CPU_Socket) AS socket_type,
