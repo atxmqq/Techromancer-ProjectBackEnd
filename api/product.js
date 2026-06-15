@@ -42,6 +42,10 @@ export default function (pool) {
         mb.Memory_Type AS mb_memory_type,
         mb.Max_Memory AS mb_max_memory,
         mb.Form_Factor AS mb_form_factor,
+
+        st.Brand AS st_brand,
+        st.Capacity AS st_capacity,
+        st.Interface AS st_interface,
         
         -- 1. เช็ค CPU ↔ เมนบอร์ด (จับคู่ Socket)
         COALESCE(cpu.Socket_Type, mb.CPU_Socket) AS socket_type,
@@ -64,6 +68,7 @@ export default function (pool) {
       LEFT JOIN Product_Vga_details vga ON p.vga_details = vga.vga_id
       LEFT JOIN Product_Power_details pw ON p.power_details = pw.pw_id
       LEFT JOIN Product_Case_details c ON p.case_details = c.case_id
+      LEFT JOIN Product_Storage_details st ON p.storage_details = st.st_id
     `;
 
             const [results] = await pool.promise().query(query);
